@@ -100,6 +100,23 @@ def bibtex(px_id: str) -> Response:
     return Response(paper_to_bibtex(paper), mimetype="text/plain")
 
 
+@blueprint.route("pdf/<px_id>")
+def pdf(px_id: str) -> Response:
+    """Serve PDF from GCS bucket inline."""
+    import urllib.request
+    from browse.services.papers import get_paper_by_id
+    paper = get_paper_by_id(px_id)
+    if paper is None:
+        return "Paper not found", status.NOT_FOUND, {}
+    try:
+        with urllib.request.urlopen(paper["pdf_url"], timeout=15) as resp:
+            pdf_data = resp.read()
+    except Exception:
+        return "PDF not available", status.NOT_FOUND, {}
+    return Response(pdf_data, mimetype="application/pdf",
+                    headers={"Content-Disposition": f"inline; filename={px_id}.pdf"})
+
+
 @blueprint.route("archive")
 @blueprint.route("archive/")
 @blueprint.route("archive/<archive>", strict_slashes=False)

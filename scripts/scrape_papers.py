@@ -147,10 +147,50 @@ def assign_ids(papers: list[dict]) -> None:
             paper["px_id"] = f"{yymm}.{i:05d}"
 
 
+GCS_BUCKET = "parallel-arxiv-pdfs"
+LOCAL_PDF_DIR = "/rds/rds-ai-scientist/parallel-arxiv"
+
+
+def download_pdf(pdf_url: str, px_id: str, local_dir: str | None, gcs_bucket: str | None) -> bool:
+    """Download a PDF and save locally and/or upload to GCS. Returns True on success."""
+    result = subprocess.run(
+        ["curl", "-sL", "--fail", "-o", "-", pdf_url],
+        capture_output=True, timeout=30,
+    )
+    if result.returncode != 0 or not result.stdout:
+        return False
+
+    pdf_data = result.stdout
+    filename = f"{px_id}.pdf"
+
+    # Save locally
+    if local_dir:
+        os.makedirs(local_dir, exist_ok=True)
+        local_path = os.path.join(local_dir, filename)
+        with open(local_path, "wb") as f:
+            f.write(pdf_data)
+
+    # Upload to GCS
+    if gcs_bucket:
+        gcs_url = f"gs://{gcs_bucket}/{filename}"
+        proc = subprocess.run(
+            ["gsutil", "-q", "cp", "-", gcs_url],
+            input=pdf_data, capture_output=True, timeout=30,
+        )
+        if proc.returncode != 0:
+            print(f"GCS upload failed: {proc.stderr.decode()}", file=sys.stderr)
+            return False
+
+    return True
+
+
 def main():
     ap = argparse.ArgumentParser(description="Scrape ParallelScience papers")
     ap.add_argument("--org", default="ParallelScience", help="GitHub org name")
     ap.add_argument("--output", default="browse/data/papers.json", help="Output JSON path")
+    ap.add_argument("--no-pdf", action="store_true", help="Skip PDF download")
+    ap.add_argument("--pdf-dir", default=LOCAL_PDF_DIR, help="Local directory for PDFs")
+    ap.add_argument("--gcs-bucket", default=GCS_BUCKET, help="GCS bucket for PDFs")
     args = ap.parse_args()
 
     repos = list_repos(args.org)
@@ -175,6 +215,19 @@ def main():
         print(f"OK: {meta['title'][:60]}...")
 
     assign_ids(papers)
+
+    # Download PDFs
+    if not args.no_pdf:
+        print("\n=== Downloading PDFs ===")
+        for paper in papers:
+            px_id = paper["px_id"]
+            print(f"  {px_id}...", end=" ")
+            ok = download_pdf(paper["pdf_url"], px_id, args.pdf_dir, args.gcs_bucket)
+            if ok:
+                paper["pdf_url"] = f"https://storage.googleapis.com/{args.gcs_bucket}/{px_id}.pdf"
+                print("OK")
+            else:
+                print("FAILED")
 
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
     with open(args.output, "w") as f:
