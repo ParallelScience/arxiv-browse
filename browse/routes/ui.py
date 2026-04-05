@@ -90,6 +90,16 @@ def abstract(px_id: str) -> Response:
     return render_template("abs/abs.html", paper=paper), status.OK, {}
 
 
+@blueprint.route("bibtex/<px_id>")
+def bibtex(px_id: str) -> Response:
+    """Return BibTeX citation for a paper."""
+    from browse.services.papers import get_paper_by_id, paper_to_bibtex
+    paper = get_paper_by_id(px_id)
+    if paper is None:
+        return "Paper not found", status.NOT_FOUND, {}
+    return Response(paper_to_bibtex(paper), mimetype="text/plain")
+
+
 @blueprint.route("archive")
 @blueprint.route("archive/")
 @blueprint.route("archive/<archive>", strict_slashes=False)

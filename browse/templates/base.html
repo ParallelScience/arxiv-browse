@@ -25,21 +25,10 @@
       <a href="#content" class="is-sr-only">Skip to main content</a>
       <!-- desktop top bar removed -->
 
-      <div id="header" class="is-hidden-mobile">
-        {% block header %}
-        {#- The ignore_me link is not meant to be visible to users; it is meant to catch robots/crawlers not respecting robots.txt.
-            aria-hidden prevents screenreaders from being caught, and tabindex prevents it from being selectable via the tab key. -#}
-        <a aria-hidden="true" tabindex="-1" href="/IgnoreMe"></a>
-        {% block header_h1 %}<h1><a href="{{ url_for('browse.home') }}" style="color:white;text-decoration:none;font-family:'Inter',-apple-system,sans-serif;font-size:2rem;font-weight:700;letter-spacing:-0.02em;">Parallel ArXiv</a></h1>{% endblock header_h1%}
-
-       {% endblock header %}
-     </div><!-- /end desktop header -->
-
-      <div class="mobile-header">
-        <div class="columns is-mobile">
-          <div class="column logo-arxiv"><a href="{{ url_for('home') }}" style="color:white;text-decoration:none;font-family:'Inter',-apple-system,sans-serif;font-size:1.5rem;font-weight:700;">Parallel ArXiv</a></div>
-        </div>
-      </div><!-- /end mobile-header -->
+      <div id="header" style="display:flex;align-items:center;justify-content:space-between;padding:10px 20px;overflow:visible;">
+        <h1 style="margin:0;float:none;padding:0;font-size:clamp(1.1rem,4vw,2rem) !important;font-weight:700 !important;"><a href="{{ url_for('browse.home') }}" style="color:white;text-decoration:none;font-family:'Inter',-apple-system,sans-serif;font-size:inherit;font-weight:inherit;letter-spacing:-0.02em;white-space:nowrap;">Parallel ArXiv</a></h1>
+        <a href="https://parallelscience.org" style="color:white;text-decoration:none;font-family:'Inter',-apple-system,sans-serif;font-size:clamp(0.75rem,2.5vw,1rem);font-weight:500;white-space:nowrap;">parallelscience.org</a>
+      </div>
     </header>
 
     <main>

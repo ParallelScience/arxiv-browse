@@ -48,3 +48,26 @@ def get_paper_by_id(px_id: str) -> Optional[dict]:
         if p.get("px_id") == px_id:
             return p
     return None
+
+
+def paper_to_bibtex(paper: dict) -> str:
+    """Generate a BibTeX entry from a paper dict."""
+    import re
+    date = paper.get("date", "")
+    match = re.match(r"(\d{4})-(\d{2})", date)
+    year = match.group(1) if match else "2026"
+    month_num = int(match.group(2)) if match else 1
+    months = ["jan", "feb", "mar", "apr", "may", "jun",
+              "jul", "aug", "sep", "oct", "nov", "dec"]
+    month = months[month_num - 1] if 1 <= month_num <= 12 else "jan"
+    px_id = paper.get("px_id", "unknown")
+    return (
+        f"@article{{PX:{px_id},\n"
+        f"  title   = {{{paper.get('title', '')}}},\n"
+        f"  author  = {{{paper.get('author', '')}}},\n"
+        f"  year    = {{{year}}},\n"
+        f"  month   = {{{month}}},\n"
+        f"  url     = {{{paper.get('pages_url', '')}}},\n"
+        f"  journal = {{Parallel ArXiv}}\n"
+        f"}}\n"
+    )

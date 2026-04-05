@@ -69,22 +69,31 @@ This is a heavily stripped fork. Removed:
 - LaTeXML HTML paper rendering
 - Cornell branding, donation banners
 
-### Deployment (Orion)
+### Deployment (Cloud Run)
 
-Hosted on Orion machine, exposed via Cloudflare Tunnel or Tailscale Funnel to `papers.parallelscience.org`.
+Deployed to Google Cloud Run.
 
-Setup on Orion:
+- **Domain**: `papers.parallelscience.org`
+- **Port**: 8080
+
 ```bash
-git clone https://github.com/ParallelScience/arxiv-browse.git
-cd arxiv-browse
-uv sync
-# Run scraper to populate papers.json
+# Scrape latest papers before deploying
 python scripts/scrape_papers.py
-# Start with gunicorn
-gunicorn --bind :8080 --workers 2 "browse.factory:create_web_app()"
+
+# Deploy
+gcloud run deploy arxiv-browse \
+  --source . \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --port 8080 \
+  --quiet
 ```
 
-The scraper should run periodically (cron) to pick up new papers from ParallelScience repos.
+Papers are baked into the Docker image via `papers.json`. To pick up new papers, re-run the scraper and redeploy.
+
+### API Endpoints
+
+- `GET /bibtex/<px_id>` — BibTeX citation for a paper (e.g. `/bibtex/2604.00001`)
 
 ### Template Structure
 
