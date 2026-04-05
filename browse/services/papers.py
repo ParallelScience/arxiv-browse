@@ -5,13 +5,9 @@ import os
 from typing import Optional
 
 _papers_cache: list[dict] | None = None
+_taxonomy_cache: dict | None = None
 PAPERS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "papers.json")
-
-# Categories that map to our papers
-PARALLEL_CATEGORIES = {
-    "physics": "Physics",
-    "physics.class-ph": "Classical Physics",
-}
+TAXONOMY_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "arxiv_taxonomy.json")
 
 
 def _load_papers() -> list[dict]:
@@ -25,16 +21,73 @@ def _load_papers() -> list[dict]:
     return _papers_cache
 
 
+def _load_taxonomy() -> dict:
+    global _taxonomy_cache
+    if _taxonomy_cache is None:
+        if os.path.exists(TAXONOMY_PATH):
+            with open(TAXONOMY_PATH) as f:
+                _taxonomy_cache = json.load(f)
+        else:
+            _taxonomy_cache = {}
+    return _taxonomy_cache
+
+
 def get_papers_for_category(context: str) -> Optional[list[dict]]:
-    """Return papers if context matches our categories, else None."""
-    if context not in PARALLEL_CATEGORIES:
-        return None
-    return _load_papers()
+    """Return papers matching a category (primary or secondary), or all papers for an archive.
+
+    Returns None if context doesn't match any known category/archive with papers.
+    """
+    papers = _load_papers()
+
+    # Filter papers that match this category (primary or secondary)
+    matched = [p for p in papers if _paper_matches_category(p, context)]
+
+    if matched:
+        return matched
+
+    # No matches — check if this is even a valid category in our data
+    all_categories = set()
+    for p in papers:
+        primary = p.get("primary_category", "")
+        if primary:
+            all_categories.add(primary)
+            # Add the archive too (e.g., "physics" from "physics.class-ph")
+            if "." in primary:
+                all_categories.add(primary.rsplit(".", 1)[0])
+        for sec in p.get("secondary_categories", []):
+            if sec:
+                all_categories.add(sec)
+                if "." in sec:
+                    all_categories.add(sec.rsplit(".", 1)[0])
+
+    if context in all_categories:
+        return []  # Valid category but no papers right now
+
+    return None  # Unknown category
+
+
+def _paper_matches_category(paper: dict, context: str) -> bool:
+    """Check if a paper belongs to a category or archive."""
+    primary = paper.get("primary_category", "")
+    secondary = paper.get("secondary_categories", [])
+    all_cats = [primary] + secondary
+
+    for cat in all_cats:
+        if cat == context:
+            return True
+        # Archive match: "physics" matches "physics.class-ph"
+        if "." in cat and cat.rsplit(".", 1)[0] == context:
+            return True
+
+    return False
 
 
 def get_category_name(context: str) -> str:
-    """Return the display name for a category, or the raw context."""
-    return PARALLEL_CATEGORIES.get(context, context)
+    """Return the human-readable name for a category code."""
+    taxonomy = _load_taxonomy()
+    if context in taxonomy:
+        return taxonomy[context]["name"]
+    return context
 
 
 def get_papers_by_author(author: str) -> list[dict]:

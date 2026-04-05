@@ -66,11 +66,11 @@ def author_papers(author: str) -> Response:
 @blueprint.route("abs/<px_id>")
 def abstract(px_id: str) -> Response:
     """Abstract page for a paper."""
-    from browse.services.papers import get_paper_by_id
+    from browse.services.papers import get_paper_by_id, get_category_name
     paper = get_paper_by_id(px_id)
     if paper is None:
         return render_template("abs/not_found.html", px_id=px_id), status.NOT_FOUND, {}
-    # Format date in AOE (UTC-12): "Tue, 10 Feb 2026 19:00:00 AOE"
+    # Format date in AOE (UTC-12): "Fri, 04 Apr 2026 12:28:56 AOE"
     import re as _re
     from datetime import timedelta, timezone
     try:
@@ -86,7 +86,11 @@ def abstract(px_id: str) -> Response:
     author_key = _re.sub(r'[^a-z]', '', paper.get("author", "").split()[0].lower()) if paper.get("author") else "unknown"
     title_word = _re.sub(r'[^a-z]', '', paper.get("title", "").split()[0].lower()) if paper.get("title") else "paper"
     bibtex_key = f"{author_key}{year}{title_word}"
-    paper = {**paper, "date_formatted": date_formatted, "year": year, "bibtex_key": bibtex_key}
+    # Resolve category name from taxonomy
+    primary_cat = paper.get("primary_category", "")
+    primary_category_name = get_category_name(primary_cat) if primary_cat else ""
+    paper = {**paper, "date_formatted": date_formatted, "year": year,
+             "bibtex_key": bibtex_key, "primary_category_name": primary_category_name}
     return render_template("abs/abs.html", paper=paper), status.OK, {}
 
 

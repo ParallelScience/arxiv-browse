@@ -1,35 +1,24 @@
 {%- extends "base.html" -%}
 
-{% block head %}
-{{ super() }}
-<link rel="alternate" type="application/rss+xml" title="{{archive['name']}}" href="/rss/{{archive_id}}"/>
-{% endblock head %}
-
-{% block title %}{{archive.full_name}}{% endblock %}
-
-{% block header_h1 %}
-<h1 class="header-breadcrumbs"><a href="/" style="color:white;text-decoration:none;font-family:'Inter',-apple-system,sans-serif;font-size:1.5rem;font-weight:700;">Parallel ArXiv</a> <span>&gt;</span> <a href="{{url_for('.list_articles', context=archive.id, subcontext='recent')}}">{{archive.id}}</a></h1>
-{% endblock %}
-
+{% block title %}{{ archive_name }} — Parallel ArXiv{% endblock %}
 
 {%- block content %}
-  <h1>{{archive.full_name}} <span style="font-size: 70%;">(since April 2026)</span></h1>
+  <h1>{{ archive_name }} <span style="font-size: 70%;">(since {{ since }})</span></h1>
 
-  {% if subsumed_id %}
-    <p>The <b>{{subsumed_id}}</b> archive has been subsumed into
-      <span class="primary-subject">{{subsuming_category.full_name}} ({{subsuming_category.id}}).</span></p>
-    <p>{{subsuming_category.full_name}} ({{subsuming_category.id}}) is part of the {{archive.full_name}} archive.</p>
-  {% endif %}
-
-  <h2>Categories within {{archive.full_name}}</h2>
+  {% if categories %}
+  <h2>Categories within {{ archive_name }}</h2>
   <ul>
-    <li><b>physics.class-ph - Classical Physics</b>
-      (<a href="/list/physics.class-ph/new">new</a>,
-      <a href="/list/physics.class-ph/recent">recent</a>,
-      <a href="/list/physics.class-ph/current">current month</a>)
-      <div class="description">Newtonian and relativistic dynamics; many particle systems; planetary motions; chaos in classical dynamics. Maxwell's equations and dynamics of charged systems and electromagnetic forces in materials. Vibrating systems such as membranes and cantilevers; optomechanics. Classical waves, including acoustics and elasticity; physics of music and musical instruments. Classical thermodynamics and heat flow problems.</div>
+    {% for cat in categories %}
+    <li><b>{{ cat.code }} - {{ cat.name }}</b>
+      (<a href="/list/{{ cat.code }}/new">new</a>,
+      <a href="/list/{{ cat.code }}/recent">recent</a>)
+      {% if cat.description %}
+      <div class="description">{{ cat.description }}</div>
+      {% endif %}
     </li>
+    {% endfor %}
   </ul>
+  {% else %}
+  <p>No papers in this archive yet.</p>
+  {% endif %}
 {%- endblock %}
-
-

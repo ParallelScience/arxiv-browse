@@ -30,6 +30,8 @@ class PageParser(HTMLParser):
         self.title = ""
         self.author = ""
         self.date = ""
+        self.time = ""
+        self.subject = ""
         self.abstract = ""
         self._current_text = []
 
@@ -61,6 +63,10 @@ class PageParser(HTMLParser):
                 self.author = text.replace("Author:", "").strip()
             elif text.startswith("Date:"):
                 self.date = text.replace("Date:", "").strip()
+            elif text.startswith("Time:"):
+                self.time = text.replace("Time:", "").strip()
+            elif text.startswith("Subject:"):
+                self.subject = text.replace("Subject:", "").strip()
             self._in_tag = None
         elif tag == "div" and self._in_class == "meta":
             self._in_class = None
@@ -115,11 +121,25 @@ def parse_page(html: str) -> dict | None:
     parser.feed(html)
     if not parser.title or not parser.abstract:
         return None
+    # Parse subject into primary + secondary categories
+    subject = parser.subject
+    categories = [c.strip() for c in subject.split(";")] if subject else []
+    primary_category = categories[0] if categories else ""
+    secondary_categories = categories[1:] if len(categories) > 1 else []
+
+    # Combine date and time if both present
+    date = parser.date
+    if parser.time:
+        time_clean = parser.time.replace(" AOE", "").strip()
+        date = f"{date} {time_clean}"
+
     return {
         "title": parser.title,
         "author": parser.author,
-        "date": parser.date,
+        "date": date,
         "abstract": parser.abstract,
+        "primary_category": primary_category,
+        "secondary_categories": secondary_categories,
     }
 
 

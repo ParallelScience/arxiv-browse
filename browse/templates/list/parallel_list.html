@@ -2,16 +2,9 @@
 
 {% block title %}{{ context }} — Parallel ArXiv{% endblock %}
 
-{% block header_h1 %}
-<h1 class="header-breadcrumbs">
-  <a href="/" style="color:white;text-decoration:none;font-family:'Inter',-apple-system,sans-serif;font-size:1.5rem;font-weight:700;">Parallel ArXiv</a>
-  <span>&gt;</span> {{ context }}
-</h1>
-{% endblock %}
-
 {%- block content %}
 
-<h1>{{ context }}</h1>
+<h2>{{ context }}</h2>
 
 {% if subcontext == 'author' %}
 <h3>{{ papers|length }} paper{{ 's' if papers|length != 1 }}</h3>
@@ -32,10 +25,10 @@
         <span class="descriptor">Authors:</span> <a href="/author/{{ paper.author }}">{{ paper.author }}</a>
       </div>
       <div class="list-subjects">
-        <span class="descriptor">Subjects:</span> <span class="primary-subject">Classical Physics (physics.class-ph)</span>
+        <span class="descriptor">Subjects:</span> <span class="primary-subject">{{ paper.primary_category }}</span>{% if paper.secondary_categories %}; {{ paper.secondary_categories | join('; ') }}{% endif %}
       </div>
       <div class="list-dateline">
-        <span class="descriptor">Submitted:</span> {{ paper.date }}
+        [Submitted on {{ paper.date }}]
       </div>
       <p class="mathjax">{{ paper.abstract }}</p>
     </div>
@@ -44,7 +37,7 @@
 </dl>
 
 {% elif subcontext == 'new' %}
-<h3>New submissions for {{ now }}, showing {{ papers|length }} of {{ papers|length }} entries</h3>
+<h3>New submissions for {{ now }} (showing {{ papers|length }} of {{ papers|length }} entries)</h3>
 <dl id="articles">
 {% for paper in papers %}
   <dt>
@@ -62,7 +55,10 @@
         <span class="descriptor">Authors:</span> <a href="/author/{{ paper.author }}">{{ paper.author }}</a>
       </div>
       <div class="list-subjects">
-        <span class="descriptor">Subjects:</span> <span class="primary-subject">Classical Physics (physics.class-ph)</span>
+        <span class="descriptor">Subjects:</span> <span class="primary-subject">{{ paper.primary_category }}</span>{% if paper.secondary_categories %}; {{ paper.secondary_categories | join('; ') }}{% endif %}
+      </div>
+      <div class="list-dateline">
+        [Submitted on {{ paper.date }}]
       </div>
       <p class="mathjax">{{ paper.abstract }}</p>
     </div>
@@ -71,7 +67,7 @@
 </dl>
 
 {% elif subcontext == 'recent' %}
-<h3>Recent submissions, showing {{ papers|length }} of {{ papers|length }} entries</h3>
+<h3>Recent submissions (showing {{ papers|length }} of {{ papers|length }} entries)</h3>
 <dl id="articles">
 {% for paper in papers %}
   <dt>
@@ -94,7 +90,7 @@
 </dl>
 
 {% else %}
-<h3>Listings for {{ subcontext }}, showing {{ papers|length }} of {{ papers|length }} entries</h3>
+<h3>Listings for {{ subcontext }} (showing {{ papers|length }} of {{ papers|length }} entries)</h3>
 <dl id="articles">
 {% for paper in papers %}
   <dt>
@@ -112,7 +108,10 @@
         <span class="descriptor">Authors:</span> <a href="/author/{{ paper.author }}">{{ paper.author }}</a>
       </div>
       <div class="list-subjects">
-        <span class="descriptor">Subjects:</span> <span class="primary-subject">Classical Physics (physics.class-ph)</span>
+        <span class="descriptor">Subjects:</span> <span class="primary-subject">{{ paper.primary_category }}</span>{% if paper.secondary_categories %}; {{ paper.secondary_categories | join('; ') }}{% endif %}
+      </div>
+      <div class="list-dateline">
+        [Submitted on {{ paper.date }}]
       </div>
       <p class="mathjax">{{ paper.abstract }}</p>
     </div>

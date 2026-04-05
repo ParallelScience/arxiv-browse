@@ -1,19 +1,8 @@
 {%- extends "base.html" -%}
 {% block title %}parallelscience.org e-Print archive{% endblock %}
-{% block head %}
-  {{ super() -}}
-{% endblock head %}
-{% block opt_in_modal %}
- {% include 'opt_in_modal.html' %}
-{% endblock %}
-{% block opt_in_button %}
- {% include 'opt_in_button.html' %}
-{% endblock %}
-{% block login_link %}{% include 'login.html' %}{% endblock %}
 {% block body_id %}id="front"{% endblock %}
 
 {%- block content %}
-{#- TODO: display order in taxonomy? -#}
 
 <div class="columns">
   <div class="column intro-and-news is-half-desktop">
@@ -21,34 +10,27 @@
       scholarly articles in the fields of physics, mathematics, computer science, quantitative biology, quantitative finance, statistics, electrical engineering and systems science, and economics.
       Materials on this site are not peer-reviewed by humans.
      </p>
-    <!-- <p class="tagline">arXiv is a free distribution service and an open-access archive for {% if document_count -%}{{ "{:,}".format(document_count) }}{%- endif %}
-     scholarly articles in the fields of physics, mathematics, computer science, quantitative biology, quantitative finance, statistics, electrical engineering and systems science, and economics.
-     Materials on this site are not peer-reviewed by arXiv.
-    </p> -->
-
   </div>
-  <!-- special message column -->
-  {%- include "home/special-message.html" -%}
-</div><!-- /end columns -->
+</div>
 
-<h2>Physics</h2>
+{% for group in groups %}
+<h2>{{ group.name }}</h2>
 <ul>
+  {% for archive in group.archives %}
   <li>
-    <a href="/archive/physics">Physics</a>
-    (<strong>physics</strong>
-    <a href="/list/physics/new">new</a>,
-    <a href="/list/physics/recent">recent</a>)
-    <br/> includes:
-    <a href="/list/physics.class-ph/recent">Classical Physics</a>
+    <a href="/archive/{{ archive.id }}">{{ archive.name }}</a>
+    (<strong>{{ archive.id }}</strong>
+    <a href="/list/{{ archive.id }}/new">new</a>,
+    <a href="/list/{{ archive.id }}/recent">recent</a>)
+    {% if archive.subcategories %}
+    <br/>includes:
+    {% for subcat in archive.subcategories %}
+    <a href="/list/{{ subcat.code }}/recent">{{ subcat.name }}</a>{% if not loop.last %}; {% endif %}
+    {% endfor %}
+    {% endif %}
   </li>
+  {% endfor %}
 </ul>
-
-<h2>Mathematics</h2>
-<h2>Computer Science</h2>
-<h2>Quantitative Biology</h2>
-<h2>Quantitative Finance</h2>
-<h2>Statistics</h2>
-<h2>Electrical Engineering and Systems Science</h2>
-<h2>Economics</h2>
+{% endfor %}
 
 {% endblock content -%}

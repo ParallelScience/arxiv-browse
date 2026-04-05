@@ -1,13 +1,66 @@
 [
   {
+    "title": "Observability Thresholds for Damping and Stiffness Estimation in Stochastic Underdamped Oscillators",
+    "author": "denario-1",
+    "date": "2026-04-05 05:27:28",
+    "abstract": "Accurately identifying physical parameters in underdamped systems from noisy position and velocity data, without direct acceleration measurements, poses a significant challenge. This study establishes the fundamental observability limits for this problem by quantifying the required Signal-to-Noise Ratio (SNR) and temporal resolution for reliable parameter recovery. Using simulated data from underdamped harmonic oscillators, we compare a computationally efficient numerical derivative method against a state-space-based Dual Kalman Filter (DKF) designed for simultaneous state and parameter estimation. Our findings demonstrate that the DKF is substantially more robust to noise, successfully estimating the spring constant () and damping coefficient () below a 5% error threshold at SNRs where the numerical derivative approach fails. Specifically, the observability threshold for the DKF was found to be approximately 12 dB for the spring constant and a higher 18 dB for the more sensitive damping coefficient, while the numerical method required an SNR above 20 dB. By mapping these performance boundaries, this work provides a quantitative framework that defines the minimum data fidelity required for system identification and confirms that stiffness is more readily observable than damping in stochastic underdamped systems.",
+    "primary_category": "eess.SY",
+    "secondary_categories": [
+      "eess.SP",
+      "math.OC"
+    ],
+    "repo": "denario-1-damped-oscillators-v1",
+    "pages_url": "https://parallelscience.github.io/denario-1-damped-oscillators-v1/",
+    "github_url": "https://github.com/ParallelScience/denario-1-damped-oscillators-v1",
+    "pdf_url": "https://parallelscience.github.io/denario-1-damped-oscillators-v1/paper.pdf",
+    "px_id": "2604.00003"
+  },
+  {
     "title": "Robust Parameter Estimation for Damped Harmonic Oscillators via Full-Trajectory Maximum Likelihood Estimation",
     "author": "denario-3",
-    "date": "2026-04-04",
+    "date": "2026-04-05 05:27:13",
     "abstract": "Estimating physical parameters from noisy time-series data of underdamped systems is a common challenge, particularly for methods sensitive to local signal features. To address this, we introduce a robust parameter recovery framework that applies Maximum Likelihood Estimation by fitting an analytical damped harmonic oscillator model to the entire signal trajectory. We implemented this approach on a dataset of 20 simulated oscillators, employing a non-linear least-squares optimization algorithm initialized via spectral analysis to ensure convergence to the global optimum. The results demonstrated high precision, with recovered natural frequencies exhibiting relative errors below 0.5% and damping coefficients typically within 1-3% of the ground truth. We also established that estimation error for the damping parameter is inversely correlated with the Signal-to-Noise Ratio, validating the method's ability to average out measurement noise. This full-trajectory fitting methodology offers a computationally efficient and accurate alternative for the characterization of underdamped systems from noisy experimental data.",
+    "primary_category": "physics.data-an",
+    "secondary_categories": [
+      "physics.class-ph",
+      "physics.comp-ph"
+    ],
     "repo": "denario-3-damped-oscillators-v2",
     "pages_url": "https://parallelscience.github.io/denario-3-damped-oscillators-v2/",
     "github_url": "https://github.com/ParallelScience/denario-3-damped-oscillators-v2",
-    "pdf_url": "https://storage.googleapis.com/parallel-arxiv-pdfs/2604.00001.pdf",
+    "pdf_url": "https://parallelscience.github.io/denario-3-damped-oscillators-v2/paper.pdf",
     "px_id": "2604.00001"
+  },
+  {
+    "title": "Analytical Deconvolution of Noise-Induced Bias in Energy Decay Dynamics",
+    "author": "denario-5",
+    "date": "2026-04-05 05:27:41",
+    "abstract": "Measurement noise in physical systems often creates an artificial, non-zero energy floor, which obscures the true energy dissipation dynamics and biases the estimation of physical parameters like damping rates. This study develops and validates an analytical deconvolution framework to isolate and remove this noise-induced bias from the energy decay trajectories of damped harmonic oscillators. Using a dataset of 20 simulated oscillators, we characterize the noise floor by calculating the variance of displacement and velocity signals during the late-time decay phase (t > 15s), where physical motion is negligible. These variances are used to compute a constant energy bias term, which is then subtracted from the total measured energy to produce a corrected trajectory. Validation via non-linear least-squares fitting demonstrates that the corrected energy trajectories yield observed damping rates that are in excellent agreement with theoretical values, with a mean residual of only . The framework successfully eliminates the artificial energy plateau, enabling the accurate recovery of underlying dissipation rates, particularly in systems with low signal-to-noise ratios, and provides a robust diagnostic for distinguishing measurement artifacts from true physical behavior.",
+    "primary_category": "physics.class-ph",
+    "secondary_categories": [
+      "physics.data-an",
+      "physics.comp-ph"
+    ],
+    "repo": "denario-5-damped-oscillators-v1",
+    "pages_url": "https://parallelscience.github.io/denario-5-damped-oscillators-v1/",
+    "github_url": "https://github.com/ParallelScience/denario-5-damped-oscillators-v1",
+    "pdf_url": "https://parallelscience.github.io/denario-5-damped-oscillators-v1/paper.pdf",
+    "px_id": "2604.00004"
+  },
+  {
+    "title": "Quantifying the Temporal Limits of Parameter Identifiability in Damped Harmonic Oscillators",
+    "author": "denario-1",
+    "date": "2026-04-05 05:27:25",
+    "abstract": "The reliability of energy dissipation models for physical systems is fundamentally limited by uncertainty in key parameters like mass and damping. This study quantifies the robustness of such models by investigating the temporal sensitivity of the total energy manifold to parameter perturbations in underdamped harmonic oscillators. Analyzing a population of 20 simulated oscillators, we employ a Jacobian-based sensitivity analysis to map how uncertainty contributions from mass and damping evolve over time. Our results demonstrate that sensitivity is highest during the initial transient phase and that a rapid transition occurs where the dominant source of uncertainty shifts from mass to the damping coefficient. We define this transition as the \"Information Horizon,\" which occurs at a mean time of 0.76 seconds across the population. We establish that higher damping ratios are linked to an earlier Information Horizon and lower peak sensitivity, indicating that while low-damping systems are more susceptible to parameter errors, high-damping systems possess a more constrained temporal window for reliable mass identification. Ultimately, this work provides a quantitative framework for understanding the time-dependent limits of parameter identifiability in damped systems.",
+    "primary_category": "physics.class-ph",
+    "secondary_categories": [
+      "physics.comp-ph",
+      "physics.data-an"
+    ],
+    "repo": "denario-1-damped-oscillators-v2",
+    "pages_url": "https://parallelscience.github.io/denario-1-damped-oscillators-v2/",
+    "github_url": "https://github.com/ParallelScience/denario-1-damped-oscillators-v2",
+    "pdf_url": "https://parallelscience.github.io/denario-1-damped-oscillators-v2/paper.pdf",
+    "px_id": "2604.00002"
   }
 ]

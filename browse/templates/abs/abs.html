@@ -2,24 +2,17 @@
 
 {% block title %}[PX:{{ paper.px_id }}] {{ paper.title }}{% endblock %}
 
-{% block header_h1 %}
-<h1 class="header-breadcrumbs">
-  <a href="/" style="color:white;text-decoration:none;font-family:'Inter',-apple-system,sans-serif;font-size:1.5rem;font-weight:700;">Parallel ArXiv</a>
-  <span>&gt;</span> <a href="/list/physics.class-ph/new" style="color:white;text-decoration:none;">physics.class-ph</a>
-  <span>&gt;</span> PX:{{ paper.px_id }}
-</h1>
-{% endblock %}
-
 {%- block content %}
 
 <div id="abs-outer">
   <div class="leftcolumn">
     <div class="subheader">
-      <h1>Classical Physics</h1>
+      <h1>{{ paper.primary_category_name }}</h1>
     </div>
 
     <div id="content-inner">
       <div id="abs">
+        <div class="dateline">[Submitted on {{ paper.date_formatted }}]</div>
         <h1 class="title mathjax">{{ paper.title }}</h1>
 
         <div class="authors">
@@ -35,7 +28,7 @@
           <tr>
             <td class="tablecell label">Subjects:</td>
             <td class="tablecell subjects">
-              <span class="primary-subject">Classical Physics (physics.class-ph)</span>
+              <span class="primary-subject">{{ paper.primary_category }}</span>{% if paper.secondary_categories %}; {{ paper.secondary_categories | join('; ') }}{% endif %}
             </td>
           </tr>
           <tr>
@@ -58,7 +51,7 @@
     <div class="full-text">
       <h3>Access Paper</h3>
       <ul>
-        <li><a href="/pdf/{{ paper.px_id }}">PDF</a></li>
+        <li><a href="{{ paper.pdf_url }}">PDF</a></li>
         <li><a href="{{ paper.pages_url }}">Paper Page</a></li>
         <li><a href="{{ paper.github_url }}">GitHub</a></li>
       </ul>
@@ -82,7 +75,7 @@
       year={{"{"}}{{ paper.year }}{{"}"}},
       eprint={{"{"}}{{ paper.px_id }}{{"}"}},
       archivePrefix={{"{"}}ParallelArXiv{{"}"}},
-      primaryClass={{"{"}}physics.class-ph{{"}"}},
+      primaryClass={{"{"}}{{ paper.primary_category }}{{"}"}},
       url={{"{"}}https://papers.parallelscience.org/abs/{{ paper.px_id }}{{"}"}},
 {{"}"}}</pre>
     <p style="font-size:0.8rem; color:#888; margin-top:0.5rem;">Click to copy <span id="copy-msg" style="display:none; color:green;">Copied!</span></p>
