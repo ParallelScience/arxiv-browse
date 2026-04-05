@@ -63,6 +63,33 @@ def author_papers(author: str) -> Response:
                            now=datetime.now().strftime("%a, %d %b %Y")), status.OK, {}
 
 
+@blueprint.route("abs/<px_id>")
+def abstract(px_id: str) -> Response:
+    """Abstract page for a paper."""
+    from browse.services.papers import get_paper_by_id
+    paper = get_paper_by_id(px_id)
+    if paper is None:
+        return render_template("abs/not_found.html", px_id=px_id), status.NOT_FOUND, {}
+    # Format date in AOE (UTC-12): "Tue, 10 Feb 2026 19:00:00 AOE"
+    import re as _re
+    from datetime import timedelta, timezone
+    try:
+        dt = datetime.strptime(paper["date"], "%Y-%m-%d %H:%M:%S")
+        aoe = timezone(timedelta(hours=-12))
+        dt_aoe = dt.replace(tzinfo=timezone.utc).astimezone(aoe)
+        date_formatted = dt_aoe.strftime("%a, %d %b %Y %H:%M:%S") + " AOE"
+        year = str(dt.year)
+    except (ValueError, KeyError):
+        date_formatted = paper.get("date", "")
+        year = ""
+    # Generate BibTeX key: author2026firstword
+    author_key = _re.sub(r'[^a-z]', '', paper.get("author", "").split()[0].lower()) if paper.get("author") else "unknown"
+    title_word = _re.sub(r'[^a-z]', '', paper.get("title", "").split()[0].lower()) if paper.get("title") else "paper"
+    bibtex_key = f"{author_key}{year}{title_word}"
+    paper = {**paper, "date_formatted": date_formatted, "year": year, "bibtex_key": bibtex_key}
+    return render_template("abs/abs.html", paper=paper), status.OK, {}
+
+
 @blueprint.route("archive")
 @blueprint.route("archive/")
 @blueprint.route("archive/<archive>", strict_slashes=False)

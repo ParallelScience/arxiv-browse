@@ -1,0 +1,92 @@
+{%- extends "base.html" -%}
+
+{% block title %}[PX:{{ paper.px_id }}] {{ paper.title }}{% endblock %}
+
+{% block header_h1 %}
+<h1 class="header-breadcrumbs">
+  <a href="/" style="color:white;text-decoration:none;font-family:'Inter',-apple-system,sans-serif;font-size:1.5rem;font-weight:700;">Parallel ArXiv</a>
+  <span>&gt;</span> <a href="/list/physics.class-ph/new" style="color:white;text-decoration:none;">physics.class-ph</a>
+  <span>&gt;</span> PX:{{ paper.px_id }}
+</h1>
+{% endblock %}
+
+{%- block content %}
+
+<div id="abs-outer">
+  <div class="leftcolumn">
+    <div class="subheader">
+      <h1>Classical Physics</h1>
+    </div>
+
+    <div id="content-inner">
+      <div id="abs">
+        <h1 class="title mathjax">{{ paper.title }}</h1>
+
+        <div class="authors">
+          <a href="/author/{{ paper.author }}">{{ paper.author }}</a>
+        </div>
+
+        <blockquote class="abstract mathjax">
+          <span class="descriptor">Abstract:</span>
+          {{ paper.abstract }}
+        </blockquote>
+
+        <table class="metatable">
+          <tr>
+            <td class="tablecell label">Subjects:</td>
+            <td class="tablecell subjects">
+              <span class="primary-subject">Classical Physics (physics.class-ph)</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="tablecell label">Cite as:</td>
+            <td class="tablecell arxivid">
+              <span class="arxivid"><a href="/abs/{{ paper.px_id }}">PX:{{ paper.px_id }}</a></span>
+            </td>
+          </tr>
+        </table>
+
+        <div class="submission-history">
+          <h2>Submission history</h2>
+          <strong>[v1]</strong> {{ paper.date_formatted }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="extra-services">
+    <div class="full-text">
+      <h3>Access Paper</h3>
+      <ul>
+        <li><a href="{{ paper.pdf_url }}">PDF</a></li>
+        <li><a href="{{ paper.pages_url }}">Paper Page</a></li>
+        <li><a href="{{ paper.github_url }}">GitHub</a></li>
+      </ul>
+    </div>
+    <div class="full-text">
+      <h3>References &amp; Citations</h3>
+      <ul>
+        <li><a href="#" onclick="document.getElementById('bibtex-modal').style.display='flex'; return false;">Export BibTeX citation</a></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div id="bibtex-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--bg,#fff); border:1px solid #ccc; border-radius:8px; padding:1.5rem; max-width:600px; width:90%; position:relative;">
+    <button onclick="this.parentElement.parentElement.style.display='none'" style="position:absolute; top:0.5rem; right:0.75rem; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#888;">&times;</button>
+    <h3 style="margin-bottom:1rem;">BibTeX Citation</h3>
+    <pre id="bibtex-content" style="background:#f5f5f5; padding:1rem; border-radius:4px; font-size:0.85rem; overflow-x:auto; white-space:pre-wrap; cursor:pointer;" onclick="navigator.clipboard.writeText(this.textContent).then(()=>{var b=document.getElementById('copy-msg');b.style.display='inline';setTimeout(()=>b.style.display='none',2000)})">@misc{{"{"}}{{ paper.bibtex_key }},
+      title={{"{"}}{{ paper.title }}{{"}"}},
+      author={{"{"}}{{ paper.author }}{{"}"}},
+      year={{"{"}}{{ paper.year }}{{"}"}},
+      eprint={{"{"}}{{ paper.px_id }}{{"}"}},
+      archivePrefix={{"{"}}ParallelArXiv{{"}"}},
+      primaryClass={{"{"}}physics.class-ph{{"}"}},
+      url={{"{"}}https://papers.parallelscience.org/abs/{{ paper.px_id }}{{"}"}},
+{{"}"}}</pre>
+    <p style="font-size:0.8rem; color:#888; margin-top:0.5rem;">Click to copy <span id="copy-msg" style="display:none; color:green;">Copied!</span></p>
+  </div>
+</div>
+
+{%- endblock %}

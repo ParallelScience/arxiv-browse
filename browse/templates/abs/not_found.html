@@ -1,0 +1,15 @@
+{%- extends "base.html" -%}
+
+{% block title %}Paper Not Found — Parallel ArXiv{% endblock %}
+
+{% block header_h1 %}
+<h1 class="header-breadcrumbs">
+  <a href="/" style="color:white;text-decoration:none;font-family:'Inter',-apple-system,sans-serif;font-size:1.5rem;font-weight:700;">Parallel ArXiv</a>
+</h1>
+{% endblock %}
+
+{%- block content %}
+<h1>Paper Not Found</h1>
+<p>Paper <strong>PX:{{ px_id }}</strong> was not found in the index.</p>
+<p><a href="/">Return to home page</a></p>
+{%- endblock %}

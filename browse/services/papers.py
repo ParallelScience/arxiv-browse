@@ -40,3 +40,11 @@ def get_category_name(context: str) -> str:
 def get_papers_by_author(author: str) -> list[dict]:
     """Return all papers by a given author."""
     return [p for p in _load_papers() if p.get("author", "").lower() == author.lower()]
+
+
+def get_paper_by_id(px_id: str) -> Optional[dict]:
+    """Return a single paper by its PX ID (e.g., '2604.00001')."""
+    for p in _load_papers():
+        if p.get("px_id") == px_id:
+            return p
+    return None
