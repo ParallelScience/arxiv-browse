@@ -86,7 +86,7 @@ class Settings(arxiv_base.Settings):
     for this in the RFC is one year.
     """
     """"========================= Services ========================="""
-    DOCUMENT_LISTING_SERVICE: PyObject = 'browse.services.listing.db_listing'  # type: ignore
+    DOCUMENT_LISTING_SERVICE: str = 'unused'  # type: ignore
     """What implementation to use for the listing service.
 
     Accepted values are
@@ -103,7 +103,7 @@ class Settings(arxiv_base.Settings):
     This can start with gs:// to use Google Storage.
     Ex gs://arxiv-production-data/ftp."""
 
-    DOCUMENT_ABSTRACT_SERVICE: PyObject = 'browse.services.documents.fs_docs'  # type: ignore
+    DOCUMENT_ABSTRACT_SERVICE: str = 'unused'  # type: ignore
     """Implementation to use for abstracts.
 
     Accepted values are:

@@ -1,8 +1,0 @@
-{% extends "base/base.html" %}
-
-{%- block title -%}Paper {{arxiv_id.ids}} withdrawn{%- endblock -%}
-
-{%- block content -%}
-<h1>This version of {{ arxiv_id.ids }} has been withdrawn and is unavailable</h1>
-<p>See <a href="{{url_for('browse.abstract', arxiv_id=arxiv_id.idv)}}">abstract</a> page for more details</p>
-{%- endblock -%}

@@ -1,5 +1,5 @@
 {%- extends "base.html" -%}
-{% block title %}arXiv.org e-Print archive{% endblock %}
+{% block title %}parallelscience.org e-Print archive{% endblock %}
 {% block head %}
   {{ super() -}}
 {% endblock head %}
@@ -17,101 +17,38 @@
 
 <div class="columns">
   <div class="column intro-and-news is-half-desktop">
-    <p class="tagline">arXiv is a free distribution service and an open-access archive for nearly 2.4 million
+    <p class="tagline">Parallel ArXiv is a free distribution service and an open-access archive for
       scholarly articles in the fields of physics, mathematics, computer science, quantitative biology, quantitative finance, statistics, electrical engineering and systems science, and economics.
-      Materials on this site are not peer-reviewed by arXiv.
+      Materials on this site are not peer-reviewed by humans.
      </p>
     <!-- <p class="tagline">arXiv is a free distribution service and an open-access archive for {% if document_count -%}{{ "{:,}".format(document_count) }}{%- endif %}
      scholarly articles in the fields of physics, mathematics, computer science, quantitative biology, quantitative finance, statistics, electrical engineering and systems science, and economics.
      Materials on this site are not peer-reviewed by arXiv.
     </p> -->
 
-    {#-  /multi sends to either search, catchup or form interface based on which button is hit. -#}
-    <form name="home-adv-search" class="home-search" action="/multi" method="get" role="search">
-      <label for="search-category">Subject search and browse:</label><br>
-      <select name="group" title="Search in" id="search-category">
-      {%- for group_key, group_details in groups.items() if not group_details.is_test %}
-        <option
-            value ="{{group_key}}"
-            data-url="{{url_for('search_archive', archive=group_key[4:])}}"
-            {% if group_key == 'grp_physics' %}selected="selected"{% endif %}>
-          {{ group_details.full_name }}
-        </option>
-        {%- endfor %}
-      </select>
-      <input id="adv-search-btn" type="button" value="Search">
-      <input type="submit" name="/form" value="Form Interface">
-      <input id="catchup-btn" type="submit" name="/catchup" value="Catchup">
-    </form>
-    <script type="text/javascript">
-      //catchup no long hosted from multi
-      document.getElementById('catchup-btn').addEventListener('click', function(event) {
-        document.querySelector('form[name="home-adv-search"]').action = "{{ url_for('browse.catchup_form') }}";
-      });
-
-     function doAdvSearchBtn(event) {
-         sel = document.querySelector('select[name="group"]')
-         if(sel && sel.options && sel.options[sel.selectedIndex].dataset.url ){
-             data_url = sel.options[sel.selectedIndex].dataset.url
-             if( data_url ){
-                 window.location = data_url;
-             }else{
-                 console.error('home page search button: no data_url found for search');
-             }
-         }
-     }
-     document.addEventListener('DOMContentLoaded',function() {
-         document.getElementById('adv-search-btn').onclick=doAdvSearchBtn;
-     },false);
-    </script>
   </div>
   <!-- special message column -->
   {%- include "home/special-message.html" -%}
 </div><!-- /end columns -->
 
-{#- TODO: define display order in taxonomy? -#}
-{{- group_section(('grp_physics','grp_math','grp_cs','grp_q-bio','grp_q-fin','grp_stat','grp_eess','grp_econ')) }}
-
-<hr />
-<h2>About arXiv</h2>
+<h2>Physics</h2>
 <ul>
-  <li><a href="{{- url_for('about') -}}">General information</a></li>
-  <li><a href="{{url_for('help')}}/submit/index.html">How to Submit to arXiv</a></li>
-  <li><a href="{{url_for('about')}}/donate.html">Membership &amp; Giving</a></li>
-  <li><a href="{{url_for('about')}}/people/index.html">Who We Are</a></li>
+  <li>
+    <a href="/archive/physics">Physics</a>
+    (<strong>physics</strong>
+    <a href="/list/physics/new">new</a>,
+    <a href="/list/physics/recent">recent</a>)
+    <br/> includes:
+    <a href="/list/physics.class-ph/recent">Classical Physics</a>
+  </li>
 </ul>
 
+<h2>Mathematics</h2>
+<h2>Computer Science</h2>
+<h2>Quantitative Biology</h2>
+<h2>Quantitative Finance</h2>
+<h2>Statistics</h2>
+<h2>Electrical Engineering and Systems Science</h2>
+<h2>Economics</h2>
+
 {% endblock content -%}
-
-{%- macro group_section(group_keys) -%}
-  {%- for group_key in group_keys -%}
-  {% set group = groups[group_key]%}
-  <h2>{{ group.full_name }}</h2>
-  <ul>
-    {%- for archive in group.get_archives() | sort(attribute='full_name') -%}
-      {%- set archive_search_url = url_for('search_archive', archive=archive.id) -%}
-      {%- set archive_url = url_for('browse.archive', archive=archive.id) if archive.id != 'cs' else 'https://info.arxiv.org/help/cs/index.html' -%}
-      {%- set archive_name = archive.full_name if archive.id != 'cs' else 'Computing Research Repository' -%}
-    <li>
-      <a href="{{ archive_url }}" id="main-{{ archive.id }}" aria-labelledby="main-{{ archive.id }}">{{ archive_name }}</a>
-      (<strong id="{{ archive.id }}">{{ archive.id if archive.id != 'cs' else 'CoRR' }}</strong>
-      <a id="new-{{ archive.id }}" aria-labelledby="new-{{ archive.id }} {{ archive.id }}" href="/list/{{ archive.id }}/new">new</a>,
-      <a id="recent-{{ archive.id }}" aria-labelledby="recent-{{ archive.id }} {{ archive.id }}" href="/list/{{ archive.id }}/recent">recent</a>,
-      <a id="search-{{ archive.id }}" aria-labelledby="search-{{ archive.id }} {{ archive.id }}" href="{{ archive_search_url }}">search</a>)
-      {% if group.id == 'grp_physics' and archive.id not in categories  %}
-      <br/> includes:
-      {% elif group.id == 'cs' %}
-      <br/>includes:
-      (see <a href="{{url_for('archive', archive=archive.id)}}" id="details-{{ archive.id }}" aria-labelledby="details-{{ archive.id }} main-{{ archive.id }}">detailed description</a>):
-      {% elif group.id != 'grp_physics' %}
-      <br/>includes: (see <a href="{{url_for('help_archive_description', archive=archive.id)}}" id="details-{{ archive.id }}" aria-labelledby="details-{{ archive.id }} main-{{ archive.id }}">detailed description</a>):
-      {% endif %}
-
-      {% for category in archive.get_categories()| sort(attribute='full_name') %}
-      {% if not (loop.first and loop.last and group.id == 'grp_physics') %}<a href="/list/{{ category.id }}/recent" id="{{ category.id }}" aria-labelledby="main-{{ archive.id }} {{ category.id }}">{{ category.full_name}}</a>{% if not loop.last %}; {% endif %}{% endif %}
-      {% endfor %}
-    </li>
-    {% endfor %}
-  </ul>
-  {% endfor %}
-{%- endmacro -%}
