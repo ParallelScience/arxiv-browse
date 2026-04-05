@@ -130,7 +130,8 @@ def parse_page(html: str) -> dict | None:
     # Combine date and time if both present
     date = parser.date
     if parser.time:
-        time_clean = parser.time.replace(" AOE", "").strip()
+        # Strip timezone suffix like "AOE" and combine
+        time_clean = re.sub(r'\s*[A-Z]{2,}$', '', parser.time).strip()
         date = f"{date} {time_clean}"
 
     return {

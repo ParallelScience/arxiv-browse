@@ -73,14 +73,21 @@ def abstract(px_id: str) -> Response:
     # Format date in AOE (UTC-12): "Fri, 04 Apr 2026 12:28:56 AOE"
     import re as _re
     from datetime import timedelta, timezone
-    try:
-        dt = datetime.strptime(paper["date"], "%Y-%m-%d %H:%M:%S")
-        aoe = timezone(timedelta(hours=-12))
-        dt_aoe = dt.replace(tzinfo=timezone.utc).astimezone(aoe)
-        date_formatted = dt_aoe.strftime("%a, %d %b %Y %H:%M:%S") + " AOE"
+    date_str = paper.get("date", "")
+    dt = None
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+        try:
+            dt = datetime.strptime(date_str, fmt)
+            break
+        except ValueError:
+            continue
+    if dt:
+        date_formatted = dt.strftime("%a, %d %b %Y %H:%M:%S") + " AOE"
+        date_submitted = dt.strftime("%d %b %Y")
         year = str(dt.year)
-    except (ValueError, KeyError):
-        date_formatted = paper.get("date", "")
+    else:
+        date_formatted = date_str
+        date_submitted = date_str
         year = ""
     # Generate BibTeX key: author2026firstword
     author_key = _re.sub(r'[^a-z]', '', paper.get("author", "").split()[0].lower()) if paper.get("author") else "unknown"
@@ -89,7 +96,7 @@ def abstract(px_id: str) -> Response:
     # Resolve category name from taxonomy
     primary_cat = paper.get("primary_category", "")
     primary_category_name = get_category_name(primary_cat) if primary_cat else ""
-    paper = {**paper, "date_formatted": date_formatted, "year": year,
+    paper = {**paper, "date_formatted": date_formatted, "date_submitted": date_submitted, "year": year,
              "bibtex_key": bibtex_key, "primary_category_name": primary_category_name}
     return render_template("abs/abs.html", paper=paper), status.OK, {}
 
