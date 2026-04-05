@@ -1,5 +1,6 @@
 """Routes for Parallel ArXiv."""
-from datetime import datetime
+import re as _re
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from http import HTTPStatus as status
 
@@ -63,16 +64,8 @@ def author_papers(author: str) -> Response:
                            now=datetime.now().strftime("%a, %d %b %Y")), status.OK, {}
 
 
-@blueprint.route("abs/<px_id>")
-def abstract(px_id: str) -> Response:
-    """Abstract page for a paper."""
-    from browse.services.papers import get_paper_by_id, get_category_name
-    paper = get_paper_by_id(px_id)
-    if paper is None:
-        return render_template("abs/not_found.html", px_id=px_id), status.NOT_FOUND, {}
-    # Format date in AOE (UTC-12): "Fri, 04 Apr 2026 12:28:56 AOE"
-    import re as _re
-    from datetime import timedelta, timezone
+def _format_paper_for_template(paper: dict) -> dict:
+    """Add display fields (date_formatted, year, version info) to a paper dict."""
     date_str = paper.get("date", "")
     dt = None
     for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
@@ -81,6 +74,7 @@ def abstract(px_id: str) -> Response:
             break
         except ValueError:
             continue
+
     if dt:
         date_formatted = dt.strftime("%a, %d %b %Y %H:%M:%S") + " AOE"
         date_submitted = dt.strftime("%d %b %Y")
@@ -89,15 +83,43 @@ def abstract(px_id: str) -> Response:
         date_formatted = date_str
         date_submitted = date_str
         year = ""
-    # Generate BibTeX key: author2026firstword
-    author_key = _re.sub(r'[^a-z]', '', paper.get("author", "").split()[0].lower()) if paper.get("author") else "unknown"
-    title_word = _re.sub(r'[^a-z]', '', paper.get("title", "").split()[0].lower()) if paper.get("title") else "paper"
-    bibtex_key = f"{author_key}{year}{title_word}"
-    # Resolve category name from taxonomy
+
+    from browse.services.papers import get_category_name, get_paper_versions
     primary_cat = paper.get("primary_category", "")
     primary_category_name = get_category_name(primary_cat) if primary_cat else ""
-    paper = {**paper, "date_formatted": date_formatted, "date_submitted": date_submitted, "year": year,
-             "bibtex_key": bibtex_key, "primary_category_name": primary_category_name}
+
+    # Get all versions for submission history
+    versions = get_paper_versions(paper["px_id"])
+
+    return {
+        **paper,
+        "date_formatted": date_formatted,
+        "date_submitted": date_submitted,
+        "year": year,
+        "primary_category_name": primary_category_name,
+        "versions": versions,
+    }
+
+
+@blueprint.route("abs/<px_id>")
+def abstract(px_id: str) -> Response:
+    """Abstract page for a paper (current version)."""
+    from browse.services.papers import get_paper_by_id
+    paper = get_paper_by_id(px_id)
+    if paper is None:
+        return render_template("abs/not_found.html", px_id=px_id), status.NOT_FOUND, {}
+    paper = _format_paper_for_template(paper)
+    return render_template("abs/abs.html", paper=paper), status.OK, {}
+
+
+@blueprint.route("abs/<px_id>v<int:version>")
+def abstract_version(px_id: str, version: int) -> Response:
+    """Abstract page for a specific version of a paper."""
+    from browse.services.papers import get_paper_by_id
+    paper = get_paper_by_id(px_id, version=version)
+    if paper is None:
+        return render_template("abs/not_found.html", px_id=px_id), status.NOT_FOUND, {}
+    paper = _format_paper_for_template(paper)
     return render_template("abs/abs.html", paper=paper), status.OK, {}
 
 
@@ -113,10 +135,20 @@ def bibtex(px_id: str) -> Response:
 
 @blueprint.route("pdf/<px_id>")
 def pdf(px_id: str) -> Response:
-    """Serve PDF from GCS bucket inline."""
+    """Serve PDF from GCS bucket inline (current version)."""
+    return _serve_pdf(px_id, version=None)
+
+
+@blueprint.route("pdf/<px_id>v<int:version>")
+def pdf_version(px_id: str, version: int) -> Response:
+    """Serve a specific version's PDF."""
+    return _serve_pdf(px_id, version=version)
+
+
+def _serve_pdf(px_id: str, version: int | None) -> Response:
     import urllib.request
     from browse.services.papers import get_paper_by_id
-    paper = get_paper_by_id(px_id)
+    paper = get_paper_by_id(px_id, version=version)
     if paper is None:
         return "Paper not found", status.NOT_FOUND, {}
     try:
@@ -124,8 +156,9 @@ def pdf(px_id: str) -> Response:
             pdf_data = resp.read()
     except Exception:
         return "PDF not available", status.NOT_FOUND, {}
+    v = paper.get("version", 1)
     return Response(pdf_data, mimetype="application/pdf",
-                    headers={"Content-Disposition": f"inline; filename={px_id}.pdf"})
+                    headers={"Content-Disposition": f"inline; filename={px_id}v{v}.pdf"})
 
 
 @blueprint.route("archive")

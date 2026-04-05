@@ -17,8 +17,29 @@ DAY = 60 * 60 * 24 # one day of seconds
 class Settings(arxiv_base.Settings):
     """Class for settings for arxiv-browse web app."""
 
-    APP_VERSION: str = "0.3.4"
-    """The application version """
+    APP_VERSION: str = "0.4.0"
+    """The application version."""
+
+    PX_DATABASE_PATH: str = os.path.join(
+        os.path.dirname(__file__), "data", "papers.db"
+    )
+    """Path to the SQLite database for papers."""
+
+    WEBHOOK_SECRET: str = os.environ.get("WEBHOOK_SECRET", "")
+    """GitHub webhook HMAC secret for signature validation."""
+
+    GITHUB_ORG: str = "ParallelScience"
+    """GitHub organization to scrape."""
+
+    GCS_BUCKET: str = "parallel-arxiv-pdfs"
+    """GCS bucket for PDF storage."""
+
+    GCS_DB_URI: str = os.environ.get("GCS_DB_URI", "")
+    """GCS URI for the papers database (e.g. gs://parallel-arxiv-pdfs/papers.db).
+    When set, the DB is downloaded from GCS on startup and synced back after writes."""
+
+    PDF_LOCAL_DIR: str = "/rds/rds-ai-scientist/parallel-arxiv"
+    """Local directory for PDF storage."""
 
     """
     Flask-S3 plugin settings.

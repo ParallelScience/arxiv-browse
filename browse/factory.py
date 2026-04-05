@@ -7,6 +7,8 @@ from arxiv.base import Base
 
 from browse.config import Settings
 from browse.routes import ui
+from browse.routes import webhook
+from browse.services.database import init_db
 
 
 def create_web_app(**kwargs) -> Flask:
@@ -21,7 +23,9 @@ def create_web_app(**kwargs) -> Flask:
     app.config.from_object(settings)
 
     Base(app)
+    init_db(app)
     app.register_blueprint(ui.blueprint)
+    app.register_blueprint(webhook.blueprint)
 
     app.jinja_env.trim_blocks = True
     app.jinja_env.lstrip_blocks = True

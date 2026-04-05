@@ -54,6 +54,7 @@ USER e-prints
 
 ENV GUNICORN gunicorn --bind :8080 \
     --workers 5 --threads 10 --timeout 0 \
+    --preload \
      "browse.factory:create_web_app()"
 
 CMD exec $GUNICORN

@@ -3,7 +3,7 @@ name = "browse"
 version = "1.0.0"
 description = "arXiv public browse and download app."
 authors = []
-requires-python = "~=3.11.0"
+requires-python = ">=3.11"
 readme = "README.md"
 dependencies = [
     "MarkupSafe",

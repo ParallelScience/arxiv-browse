@@ -12,7 +12,7 @@
 
     <div id="content-inner">
       <div id="abs">
-        <div class="dateline" style="font-size:0.9rem;color:#666;margin-bottom:0.5rem;">[Submitted on {{ paper.date_submitted }}]</div>
+        <div class="dateline" style="font-size:0.9rem;color:#666;margin-bottom:0.5rem;">[Submitted on {{ paper.date_submitted }}{% if paper.version > 1 %} (v{{ paper.version }}){% endif %}]</div>
         <h1 class="title mathjax">{{ paper.title }}</h1>
 
         <div class="authors">
@@ -41,7 +41,15 @@
 
         <div class="submission-history">
           <h2>Submission history</h2>
-          <strong>[v1]</strong> {{ paper.date_formatted }}
+          {% for v in paper.versions %}
+          {% if v.version == paper.version %}
+          <strong>[v{{ v.version }}]</strong>
+          {% else %}
+          <a href="/abs/{{ paper.px_id }}v{{ v.version }}">[v{{ v.version }}]</a>
+          {% endif %}
+          {{ v.date }}
+          {% if not loop.last %}<br>{% endif %}
+          {% endfor %}
         </div>
       </div>
     </div>
@@ -51,7 +59,7 @@
     <div class="full-text">
       <h3>Access Paper</h3>
       <ul>
-        <li><a href="{{ paper.pdf_url }}">PDF</a></li>
+        <li><a href="/pdf/{{ paper.px_id }}{% if paper.version > 1 %}v{{ paper.version }}{% endif %}">PDF</a></li>
         <li><a href="{{ paper.pages_url }}">Paper Page</a></li>
         <li><a href="{{ paper.github_url }}">GitHub</a></li>
       </ul>
@@ -69,11 +77,11 @@
   <div style="background:var(--bg,#fff); border:1px solid #ccc; border-radius:8px; padding:1.5rem; max-width:600px; width:90%; position:relative;">
     <button onclick="this.parentElement.parentElement.style.display='none'" style="position:absolute; top:0.5rem; right:0.75rem; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#888;">&times;</button>
     <h3 style="margin-bottom:1rem;">BibTeX Citation</h3>
-    <pre id="bibtex-content" style="background:#f5f5f5; padding:1rem; border-radius:4px; font-size:0.85rem; overflow-x:auto; white-space:pre-wrap; cursor:pointer;" onclick="navigator.clipboard.writeText(this.textContent).then(()=>{var b=document.getElementById('copy-msg');b.style.display='inline';setTimeout(()=>b.style.display='none',2000)})">@misc{{"{"}}{{ paper.bibtex_key }},
+    <pre id="bibtex-content" style="background:#f5f5f5; padding:1rem; border-radius:4px; font-size:0.85rem; overflow-x:auto; white-space:pre-wrap; cursor:pointer;" onclick="navigator.clipboard.writeText(this.textContent).then(()=>{var b=document.getElementById('copy-msg');b.style.display='inline';setTimeout(()=>b.style.display='none',2000)})">@article{{"{"}}PX:{{ paper.px_id }},
       title={{"{"}}{{ paper.title }}{{"}"}},
       author={{"{"}}{{ paper.author }}{{"}"}},
       year={{"{"}}{{ paper.year }}{{"}"}},
-      eprint={{"{"}}{{ paper.px_id }}{{"}"}},
+      eprint={{"{"}}{{ paper.px_id }}{% if paper.version > 1 %}v{{ paper.version }}{% endif %}{{"}"}},
       archivePrefix={{"{"}}ParallelArXiv{{"}"}},
       primaryClass={{"{"}}{{ paper.primary_category }}{{"}"}},
       url={{"{"}}https://papers.parallelscience.org/abs/{{ paper.px_id }}{{"}"}},

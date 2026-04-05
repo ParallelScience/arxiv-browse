@@ -2,9 +2,10 @@
 
 import json
 import os
-from collections import defaultdict
 from typing import Any, Dict, Tuple
 from http import HTTPStatus as status
+
+from browse.services.papers import get_all_current_papers, _load_taxonomy
 
 Response = Tuple[Dict[str, Any], int, Dict[str, Any]]
 
@@ -47,31 +48,11 @@ ARCHIVE_NAMES = {
     "econ": "Economics",
 }
 
-TAXONOMY_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "denario", "data", "arxiv_taxonomy.json")
-# Fallback: try a local copy
-TAXONOMY_PATH_LOCAL = os.path.join(os.path.dirname(__file__), "..", "data", "arxiv_taxonomy.json")
-PAPERS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "papers.json")
-
-
-def _load_taxonomy() -> dict:
-    for path in [TAXONOMY_PATH_LOCAL, TAXONOMY_PATH]:
-        if os.path.exists(path):
-            with open(path) as f:
-                return json.load(f)
-    return {}
-
-
-def _load_papers() -> list[dict]:
-    if os.path.exists(PAPERS_PATH):
-        with open(PAPERS_PATH) as f:
-            return json.load(f)
-    return []
-
 
 def get_home_page() -> Response:
     """Build the home page data with dynamic category listing."""
     taxonomy = _load_taxonomy()
-    papers = _load_papers()
+    papers = get_all_current_papers()
 
     # Collect all categories that have at least one paper
     active_categories = set()
