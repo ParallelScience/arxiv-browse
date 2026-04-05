@@ -75,17 +75,26 @@ class PageParser(HTMLParser):
             self._current_text.append(data)
 
 
-def list_repos(org: str) -> list[dict]:
-    """List repos in the org via gh CLI."""
-    result = subprocess.run(
-        ["gh", "api", f"orgs/{org}/repos", "--paginate",
-         "--jq", '.[].name'],
-        capture_output=True, text=True,
-    )
-    if result.returncode != 0:
-        print(f"Error listing repos: {result.stderr}", file=sys.stderr)
-        return []
-    return [name.strip() for name in result.stdout.strip().split("\n") if name.strip()]
+def list_repos(org: str) -> list[str]:
+    """List repos in the org via GitHub API."""
+    import urllib.request
+
+    repos: list[str] = []
+    page = 1
+    while True:
+        url = f"https://api.github.com/orgs/{org}/repos?per_page=100&page={page}"
+        req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json"})
+        # Use GITHUB_TOKEN if available for higher rate limits
+        token = os.environ.get("GITHUB_TOKEN")
+        if token:
+            req.add_header("Authorization", f"Bearer {token}")
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read())
+        if not data:
+            break
+        repos.extend(r["name"] for r in data)
+        page += 1
+    return repos
 
 
 def fetch_page(org: str, repo: str) -> str | None:
