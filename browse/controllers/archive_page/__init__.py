@@ -5,10 +5,11 @@ import os
 from typing import Any, Dict, List, Optional
 from http import HTTPStatus as status
 
+from browse.services.papers import get_all_current_papers
+
 Response = tuple[Dict[str, Any], int, Dict[str, Any]]
 
 TAXONOMY_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "arxiv_taxonomy.json")
-PAPERS_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "papers.json")
 
 # Archive display names
 ARCHIVE_NAMES = {
@@ -42,13 +43,6 @@ def _load_taxonomy() -> dict:
     return {}
 
 
-def _load_papers() -> list[dict]:
-    if os.path.exists(PAPERS_PATH):
-        with open(PAPERS_PATH) as f:
-            return json.load(f)
-    return []
-
-
 def get_archive(archive_id: Optional[str]) -> Response:
     """Gets archive page."""
     if not archive_id or archive_id == "list":
@@ -59,7 +53,7 @@ def get_archive(archive_id: Optional[str]) -> Response:
         return {"template": "archive/archive_list_all.html", "bad_archive": archive_id, "archives": []}, status.NOT_FOUND, {}
 
     taxonomy = _load_taxonomy()
-    papers = _load_papers()
+    papers = get_all_current_papers()
 
     # Find active categories for this archive
     active_categories = set()

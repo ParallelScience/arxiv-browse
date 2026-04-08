@@ -12,7 +12,7 @@
     "repo": "denario-1-damped-oscillators-v1",
     "pages_url": "https://parallelscience.github.io/denario-1-damped-oscillators-v1/",
     "github_url": "https://github.com/ParallelScience/denario-1-damped-oscillators-v1",
-    "pdf_url": "https://parallelscience.github.io/denario-1-damped-oscillators-v1/paper.pdf",
+    "pdf_url": "https://storage.googleapis.com/parallel-arxiv-pdfs/2604.00003.pdf",
     "px_id": "2604.00003"
   },
   {
@@ -28,7 +28,7 @@
     "repo": "denario-3-damped-oscillators-v2",
     "pages_url": "https://parallelscience.github.io/denario-3-damped-oscillators-v2/",
     "github_url": "https://github.com/ParallelScience/denario-3-damped-oscillators-v2",
-    "pdf_url": "https://parallelscience.github.io/denario-3-damped-oscillators-v2/paper.pdf",
+    "pdf_url": "https://storage.googleapis.com/parallel-arxiv-pdfs/2604.00001.pdf",
     "px_id": "2604.00001"
   },
   {
@@ -44,7 +44,7 @@
     "repo": "denario-5-damped-oscillators-v1",
     "pages_url": "https://parallelscience.github.io/denario-5-damped-oscillators-v1/",
     "github_url": "https://github.com/ParallelScience/denario-5-damped-oscillators-v1",
-    "pdf_url": "https://parallelscience.github.io/denario-5-damped-oscillators-v1/paper.pdf",
+    "pdf_url": "https://storage.googleapis.com/parallel-arxiv-pdfs/2604.00004.pdf",
     "px_id": "2604.00004"
   },
   {
@@ -60,7 +60,23 @@
     "repo": "denario-1-damped-oscillators-v2",
     "pages_url": "https://parallelscience.github.io/denario-1-damped-oscillators-v2/",
     "github_url": "https://github.com/ParallelScience/denario-1-damped-oscillators-v2",
-    "pdf_url": "https://parallelscience.github.io/denario-1-damped-oscillators-v2/paper.pdf",
+    "pdf_url": "https://storage.googleapis.com/parallel-arxiv-pdfs/2604.00002.pdf",
     "px_id": "2604.00002"
+  },
+  {
+    "title": "Constraint-Based Spatio-Temporal Equation Discovery via Balance Law Validation",
+    "author": "Denario",
+    "date": "2026-04-05 06:33:17",
+    "abstract": "Uncovering the fundamental spatio-temporal governing equations from observed system dynamics, particularly when temporal data is limited, presents a significant challenge. This study addresses this by rigorously validating candidate balance laws against observed system evolution, leveraging robust spatial computations to constrain spatio-temporal dynamics. We analyzed a dataset comprising ten time slices of density and velocity fields on a high-resolution  periodic spatial grid. Spatial derivatives were precisely computed using spectral methods, and observed temporal changes were approximated via first-order finite differences. Candidate equations were evaluated through residual analysis, and potential missing terms were inferred using correlation analysis. For mass conservation, the residuals between the observed temporal density change and the divergence of mass flux were consistently low (average MAE of 0.035), suggesting strong agreement. In contrast, a simplified momentum conservation law, considering only advective acceleration, yielded significant and spatially structured residuals (average MAE of 1.717). Further analysis revealed a strong positive correlation (Pearson coefficients 0.60-0.64) between these momentum residuals and a hypothesized pressure gradient term (assuming pressure proportional to density), while a simple viscous term showed negligible correlation. These findings indicate that the system's dynamics are governed by the compressible Euler equations, incorporating both advection and a pressure gradient force, with viscous effects being minor.",
+    "primary_category": "physics.flu-dyn",
+    "secondary_categories": [
+      "physics.comp-ph",
+      "physics.data-an"
+    ],
+    "repo": "constraint-based-spatio-temporal-equation-discovery-via-bala-202604050633",
+    "pages_url": "https://parallelscience.github.io/constraint-based-spatio-temporal-equation-discovery-via-bala-202604050633/",
+    "github_url": "https://github.com/ParallelScience/constraint-based-spatio-temporal-equation-discovery-via-bala-202604050633",
+    "pdf_url": "https://storage.googleapis.com/parallel-arxiv-pdfs/2604.00005.pdf",
+    "px_id": "2604.00005"
   }
 ]
