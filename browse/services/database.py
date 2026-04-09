@@ -58,6 +58,23 @@ CREATE INDEX IF NOT EXISTS idx_papers_current ON papers(is_current) WHERE is_cur
 CREATE INDEX IF NOT EXISTS idx_papers_category ON papers(primary_category) WHERE is_current = 1;
 CREATE INDEX IF NOT EXISTS idx_papers_author ON papers(author) WHERE is_current = 1;
 CREATE INDEX IF NOT EXISTS idx_papers_repo ON papers(repo);
+
+-- Citations extracted from paper bibliography files
+CREATE TABLE IF NOT EXISTS citations (
+    citing_px_id    TEXT NOT NULL,
+    citation_key    TEXT NOT NULL,
+    cited_px_id     TEXT,
+    arxiv_id        TEXT,
+    doi             TEXT,
+    title           TEXT,
+    authors         TEXT,
+    year            TEXT,
+    created_at      TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (citing_px_id, citation_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_citations_cited_px ON citations(cited_px_id) WHERE cited_px_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_citations_citing ON citations(citing_px_id);
 """
 
 

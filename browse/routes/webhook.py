@@ -82,6 +82,14 @@ def github_webhook() -> Response:
         gcs_bucket=gcs_bucket,
     )
 
+    # Extract citations from bibliography
+    try:
+        from browse.services.citations import scrape_citations
+        cite_count = scrape_citations(conn, org_name, repo_name, px_id)
+        log.info("Extracted %d citations for %s", cite_count, px_id)
+    except Exception as exc:
+        log.warning("Citation extraction failed for %s: %s", repo_name, exc)
+
     # Persist DB to GCS so it survives container restarts
     if action != "unchanged":
         sync_to_gcs()

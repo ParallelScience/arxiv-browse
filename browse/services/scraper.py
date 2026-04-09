@@ -349,8 +349,17 @@ def scrape_all_repos(
                 gcs_bucket=gcs_bucket,
                 skip_pdf=skip_pdf,
             )
-            print(f"{action} → {px_id} v{version}")
+            print(f"{action} → {px_id} v{version}", end="")
             counts[action] += 1
+            # Extract citations from bibliography
+            try:
+                from browse.services.citations import scrape_citations
+                cite_count = scrape_citations(conn, org, repo, px_id)
+                if cite_count:
+                    print(f" ({cite_count} citations)", end="")
+            except Exception as exc:
+                log.warning("Citation extraction failed for %s: %s", repo, exc)
+            print()
         except Exception as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             counts["failed"] += 1
