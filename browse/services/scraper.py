@@ -153,10 +153,15 @@ def scrape_single_repo(org: str, repo: str) -> dict | None:
 # ---------------------------------------------------------------------------
 
 def compute_content_hash(meta: dict) -> str:
-    """Deterministic hash of content fields that matter for versioning."""
+    """Deterministic hash of content fields that matter for versioning.
+
+    Includes the date/time so that a rebuilt page (new PDF, updated text)
+    triggers a version bump even if the metadata fields are unchanged.
+    """
     payload = json.dumps({
         "title": meta["title"],
         "author": meta["author"],
+        "date": meta.get("date", ""),
         "abstract": meta["abstract"],
         "primary_category": meta["primary_category"],
         "secondary_categories": sorted(meta.get("secondary_categories", [])),
