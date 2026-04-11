@@ -16,7 +16,7 @@
         <h1 class="title mathjax">{{ paper.title }}</h1>
 
         <div class="authors">
-          <a href="/author/{{ paper.author }}">{{ paper.author }}</a>
+          {% for a in paper.author.split(', ') %}<a href="/author/{{ a.strip() }}">{{ a.strip() }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
         </div>
 
         <blockquote class="abstract mathjax">

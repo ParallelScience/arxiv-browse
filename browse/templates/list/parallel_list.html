@@ -22,7 +22,7 @@
         <span class="descriptor">Title:</span> <b>{{ paper.title }}</b>
       </div>
       <div class="list-authors">
-        <span class="descriptor">Authors:</span> <a href="/author/{{ paper.author }}">{{ paper.author }}</a>
+        <span class="descriptor">Authors:</span> {% for a in paper.author.split(', ') %}<a href="/author/{{ a.strip() }}">{{ a.strip() }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
       </div>
       <div class="list-subjects">
         <span class="descriptor">Subjects:</span> <span class="primary-subject">{{ paper.primary_category }}</span>{% if paper.secondary_categories %}; {{ paper.secondary_categories | join('; ') }}{% endif %}
@@ -52,7 +52,7 @@
         <span class="descriptor">Title:</span> <b>{{ paper.title }}</b>
       </div>
       <div class="list-authors">
-        <span class="descriptor">Authors:</span> <a href="/author/{{ paper.author }}">{{ paper.author }}</a>
+        <span class="descriptor">Authors:</span> {% for a in paper.author.split(', ') %}<a href="/author/{{ a.strip() }}">{{ a.strip() }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
       </div>
       <div class="list-subjects">
         <span class="descriptor">Subjects:</span> <span class="primary-subject">{{ paper.primary_category }}</span>{% if paper.secondary_categories %}; {{ paper.secondary_categories | join('; ') }}{% endif %}
@@ -82,7 +82,7 @@
         <span class="descriptor">Title:</span> <b>{{ paper.title }}</b>
       </div>
       <div class="list-authors">
-        <span class="descriptor">Authors:</span> <a href="/author/{{ paper.author }}">{{ paper.author }}</a>
+        <span class="descriptor">Authors:</span> {% for a in paper.author.split(', ') %}<a href="/author/{{ a.strip() }}">{{ a.strip() }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
       </div>
     </div>
   </dd>
@@ -105,7 +105,7 @@
         <span class="descriptor">Title:</span> <b>{{ paper.title }}</b>
       </div>
       <div class="list-authors">
-        <span class="descriptor">Authors:</span> <a href="/author/{{ paper.author }}">{{ paper.author }}</a>
+        <span class="descriptor">Authors:</span> {% for a in paper.author.split(', ') %}<a href="/author/{{ a.strip() }}">{{ a.strip() }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
       </div>
       <div class="list-subjects">
         <span class="descriptor">Subjects:</span> <span class="primary-subject">{{ paper.primary_category }}</span>{% if paper.secondary_categories %}; {{ paper.secondary_categories | join('; ') }}{% endif %}
