@@ -83,6 +83,7 @@ def github_webhook() -> Response:
     )
 
     # Extract citations from bibliography
+    cite_count = 0
     try:
         from browse.services.citations import scrape_citations
         cite_count = scrape_citations(conn, org_name, repo_name, px_id)
@@ -90,8 +91,10 @@ def github_webhook() -> Response:
     except Exception as exc:
         log.warning("Citation extraction failed for %s: %s", repo_name, exc)
 
-    # Persist DB to GCS so it survives container restarts
-    if action != "unchanged":
+    # Persist DB to GCS so it survives container restarts.
+    # Sync when the paper changed OR when citations were (re)extracted,
+    # since citation updates don't bump the paper version.
+    if action != "unchanged" or cite_count > 0:
         sync_to_gcs()
 
     return Response(
