@@ -75,6 +75,23 @@ Each approved GitHub org installs its own org-level webhook that fires `page_bui
 
 External submitters use the [paper-template](https://github.com/ParallelScience/paper-template) repo; see [`paper-template/README.md`](../paper-template/README.md) for the per-org onboarding steps.
 
+### Bulk submissions via REST API
+
+For orgs that churn out many papers a day and already host them somewhere (e.g. `AstroPilot-AI` with PDFs on Flatiron), `POST /api/v1/papers` accepts a manifest of many papers in a single call. Auth is per-org Bearer token:
+
+```
+Authorization: Bearer pxak_<64 hex>
+```
+
+The token is matched against every approved org's `API_KEY_<ORG_UPPERCASE>` env var (same hyphen-to-underscore mapping as the webhook secrets; org is derived from whichever key matches, never user-supplied). Two content types are supported:
+
+- `application/json` — each `pdf`/`bib` is `{"url": "..."}` (server fetches) or `{"base64": "..."}` (inline).
+- `multipart/form-data` — `manifest` form field holds the JSON; file parts `pdf_<slug>` and `bib_<slug>` carry raw binary.
+
+Each entry's `slug` becomes the `repo` key in `id_registry(org, repo)`, so the same paper slug resubmitted returns its existing stable `PX:YYMM.NNNNN` ID. Per-paper errors are returned per-entry (`status: "error"`) without failing the whole request.
+
+Implementation: [`browse/routes/api_papers.py`](browse/routes/api_papers.py). The webhook path and API path both flow through [`browse/services/ingest.py::ingest_one`](browse/services/ingest.py), which owns PDF upload, citation re-ingest, and version bumping.
+
 ### Pages
 
 - `/` — Home page with dynamic category listing (only shows categories that have papers)
@@ -137,9 +154,11 @@ The DB is stored in GCS and downloaded to `/tmp` on container cold start. After 
 ```bash
 APPROVED_ORGS="ParallelScience,AstroPilot-AI"    # Comma-separated orgs allowed to submit
 WEBHOOK_SECRET="..."                             # Legacy fallback, used only for ParallelScience
-WEBHOOK_SECRET_ASTROPILOT_AI="..."               # Per-org secret: WEBHOOK_SECRET_<ORG_UPPERCASE>
+WEBHOOK_SECRET_ASTROPILOT_AI="..."               # Per-org webhook secret: WEBHOOK_SECRET_<ORG_UPPERCASE>
                                                  # (hyphens in org names map to underscores, e.g.
                                                  #  AstroPilot-AI -> ASTROPILOT_AI)
+API_KEY_ASTROPILOT_AI="pxak_..."                 # Per-org REST API bearer token: API_KEY_<ORG_UPPERCASE>
+                                                 # Format: pxak_ + 64 hex chars. Used by POST /api/v1/papers.
 GCS_DB_URI="gs://parallel-arxiv-pdfs/papers.db"  # GCS path for DB persistence
 GITHUB_TOKEN="..."                               # Optional: higher GitHub API rate limits for scraper
 ```
