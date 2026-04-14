@@ -68,10 +68,17 @@ def _store_pdf(
         return ""
     filename = f"{px_id}v{version}.pdf"
 
+    # Local dir is best-effort: Cloud Run containers don't have /rds mounted,
+    # so treat any write error as "skip local storage, use GCS". This matches
+    # the guard that used to live in webhook.py before the ingest refactor.
     if local_dir:
-        os.makedirs(local_dir, exist_ok=True)
-        with open(os.path.join(local_dir, filename), "wb") as f:
-            f.write(pdf_data)
+        try:
+            os.makedirs(local_dir, exist_ok=True)
+            with open(os.path.join(local_dir, filename), "wb") as f:
+                f.write(pdf_data)
+        except OSError as exc:
+            log.info("skipping local PDF storage at %s: %s", local_dir, exc)
+            local_dir = None
 
     if gcs_bucket:
         try:
