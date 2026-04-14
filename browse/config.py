@@ -33,6 +33,11 @@ class Settings(arxiv_base.Settings):
     External orgs use per-org secrets instead, set via
     ``WEBHOOK_SECRET_<ORG_UPPERCASE>`` environment variables. The per-org
     lookup is performed by ``secret_for_org()`` in ``routes/webhook.py``.
+
+    The REST API (``POST /api/v1/papers``) uses a parallel scheme:
+    ``API_KEY_<ORG_UPPERCASE>`` env vars holding Bearer tokens of the form
+    ``pxak_<64 hex>``. Same hyphen-to-underscore mapping as webhook
+    secrets. See ``routes/api_papers.py``.
     """
 
     APPROVED_ORGS: Annotated[list[str], NoDecode] = ["ParallelScience"]

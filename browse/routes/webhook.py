@@ -19,11 +19,21 @@ blueprint = Blueprint("webhook", __name__, url_prefix="/webhook")
 log = logging.getLogger(__name__)
 
 
+def org_env_key(prefix: str, org: str) -> str:
+    """Build the per-org env var name for *prefix* (e.g. ``WEBHOOK_SECRET``
+    or ``API_KEY``). Hyphens in org names (e.g. ``AstroPilot-AI``) are
+    mapped to underscores since POSIX env var names can't contain hyphens —
+    so ``AstroPilot-AI`` with prefix ``API_KEY`` yields ``API_KEY_ASTROPILOT_AI``.
+
+    Shared with :mod:`browse.routes.api_papers`.
+    """
+    return f"{prefix}_{org.upper().replace('-', '_')}"
+
+
+# Keep the old name as an alias so the existing webhook-specific tests
+# keep passing; delete once all call sites are migrated.
 def _env_key_for_org(org: str) -> str:
-    """Derive the per-org secret env var name. Hyphens in org names (e.g.
-    ``AstroPilot-AI``) are mapped to underscores since POSIX env var names
-    can't contain hyphens."""
-    return f"WEBHOOK_SECRET_{org.upper().replace('-', '_')}"
+    return org_env_key("WEBHOOK_SECRET", org)
 
 
 def secret_for_org(org: str) -> str:
@@ -133,26 +143,19 @@ def github_webhook() -> Response:
     if local_pdf_dir and not os.path.isdir(os.path.dirname(local_pdf_dir)):
         local_pdf_dir = None
 
+    # upsert_paper now delegates to ingest.ingest_one which handles both
+    # the paper row and its citation graph in one pass.
     px_id, version, action = upsert_paper(
         conn, meta, org_name,
         local_pdf_dir=local_pdf_dir,
         gcs_bucket=gcs_bucket,
     )
 
-    # Extract citations from bibliography
-    cite_count = 0
-    try:
-        from browse.services.citations import scrape_citations
-        cite_count = scrape_citations(conn, org_name, repo_name, px_id)
-        log.info("Extracted %d citations for %s", cite_count, px_id)
-    except Exception as exc:
-        log.warning("Citation extraction failed for %s: %s", repo_name, exc)
-
-    # Persist DB to GCS so it survives container restarts.
-    # Sync when the paper changed OR when citations were (re)extracted,
-    # since citation updates don't bump the paper version.
-    if action != "unchanged" or cite_count > 0:
-        sync_to_gcs()
+    # Always sync on a successful page_build: paper content or citations
+    # (or both) will have moved, and the Pages push that triggered this
+    # event is already rare enough that an extra GCS upload is cheap
+    # insurance compared to losing data on a cold-start.
+    sync_to_gcs()
 
     return Response(
         f'{{"px_id":"{px_id}","version":{version},"action":"{action}"}}',

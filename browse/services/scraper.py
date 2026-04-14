@@ -229,75 +229,43 @@ def upsert_paper(
     gcs_bucket: str | None = GCS_BUCKET,
     skip_pdf: bool = False,
 ) -> tuple[str, int, str]:
-    """Insert or update a paper in the database.
+    """Insert or update a paper scraped from GitHub Pages.
 
-    Returns (px_id, version, action) where action is "new", "updated", or "unchanged".
+    Thin adapter over :func:`browse.services.ingest.ingest_one`: fetches the
+    PDF bytes from ``meta["pdf_source_url"]`` and the bib text via
+    :func:`browse.services.citations.fetch_bib_file`, then delegates.
+    Kept as a stable public API so existing webhook + batch-scraper code
+    paths (and tests) don't change.
+
+    Returns ``(px_id, version, action)`` — the fourth piece (citations_count)
+    isn't returned to preserve the prior tuple shape, but citations are
+    ingested as a side-effect.
     """
+    from browse.services.citations import fetch_bib_file
+    from browse.services.ingest import fetch_bytes, ingest_one
+
     repo = meta["repo"]
-    content_hash = compute_content_hash(meta)
+    pdf_data = None if skip_pdf else fetch_bytes(meta["pdf_source_url"])
+    bib_text = fetch_bib_file(org, repo)
 
-    # Get or assign a stable PX ID (keyed on (org, repo) so different orgs
-    # can have same-named repos without collision).
-    px_id = get_or_assign_id(conn, org, repo, meta["date"])
-
-    # Check if we already have this exact content
-    existing = conn.execute(
-        "SELECT version, content_hash FROM papers "
-        "WHERE px_id = ? AND is_current = 1",
-        (px_id,),
-    ).fetchone()
-
-    if existing and existing["content_hash"] == content_hash:
-        return px_id, existing["version"], "unchanged"
-
-    if existing:
-        # Content changed — bump version
-        old_version = existing["version"]
-        new_version = old_version + 1
-        conn.execute(
-            "UPDATE papers SET is_current = 0 WHERE px_id = ? AND version = ?",
-            (px_id, old_version),
-        )
-        action = "updated"
-    else:
-        new_version = 1
-        action = "new"
-
-    # Download PDF
-    pdf_url = ""
-    if not skip_pdf:
-        pdf_url = download_pdf(
-            meta["pdf_source_url"], px_id, new_version,
-            local_dir=local_pdf_dir, gcs_bucket=gcs_bucket,
-        ) or ""
-
-    conn.execute(
-        "INSERT INTO papers "
-        "(px_id, version, title, author, date, abstract, "
-        " primary_category, secondary_categories, source_org, repo, "
-        " pages_url, github_url, pdf_url, is_current, content_hash) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)",
-        (
-            px_id,
-            new_version,
-            meta["title"],
-            meta["author"],
-            meta["date"],
-            meta["abstract"],
-            meta["primary_category"],
-            json.dumps(meta.get("secondary_categories", [])),
-            org,
-            repo,
-            meta["pages_url"],
-            meta["github_url"],
-            pdf_url,
-            content_hash,
-        ),
+    result = ingest_one(
+        conn,
+        org=org,
+        slug=repo,
+        title=meta["title"],
+        authors=meta["author"],
+        date=meta["date"],
+        abstract=meta["abstract"],
+        primary_category=meta["primary_category"],
+        secondary_categories=meta.get("secondary_categories", []),
+        pdf_data=pdf_data,
+        bib_text=bib_text,
+        pages_url=meta["pages_url"],
+        github_url=meta["github_url"],
+        local_pdf_dir=local_pdf_dir,
+        gcs_bucket=gcs_bucket,
     )
-    conn.commit()
-
-    log.info("%s %s v%d (%s)", action.upper(), px_id, new_version, meta["title"][:60])
-    return px_id, new_version, action
+    return result["px_id"], result["version"], result["action"]
 
 
 # ---------------------------------------------------------------------------
@@ -353,23 +321,16 @@ def scrape_all_repos(
                 counts["failed"] += 1
                 continue
             try:
+                # upsert_paper -> ingest_one now handles citation ingestion
+                # internally, so no separate scrape_citations call is needed.
                 px_id, version, action = upsert_paper(
                     conn, meta, org,
                     local_pdf_dir=local_pdf_dir,
                     gcs_bucket=gcs_bucket,
                     skip_pdf=skip_pdf,
                 )
-                print(f"{action} → {px_id} v{version}", end="")
+                print(f"{action} → {px_id} v{version}")
                 counts[action] += 1
-                # Extract citations from bibliography
-                try:
-                    from browse.services.citations import scrape_citations
-                    cite_count = scrape_citations(conn, org, repo, px_id)
-                    if cite_count:
-                        print(f" ({cite_count} citations)", end="")
-                except Exception as exc:
-                    log.warning("Citation extraction failed for %s/%s: %s", org, repo, exc)
-                print()
             except Exception as exc:
                 print(f"ERROR: {exc}", file=sys.stderr)
                 counts["failed"] += 1
