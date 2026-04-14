@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Scrape ParallelScience GitHub Pages sites and upsert into the SQLite database.
+"""Scrape approved-org GitHub Pages sites and upsert into the SQLite database.
 
 Usage:
     python scripts/scrape_papers.py
-    python scripts/scrape_papers.py --org ParallelScience --db browse/data/papers.db
-    python scripts/scrape_papers.py --no-pdf
+    python scripts/scrape_papers.py --orgs ParallelScience,AcmeLabs
+    python scripts/scrape_papers.py --db browse/data/papers.db --no-pdf
+
+The default org list is read from the ``APPROVED_ORGS`` env var
+(comma-separated, same format as the Flask config), falling back to
+``ParallelScience``. Pass ``--orgs`` to override explicitly.
 """
 
 import argparse
@@ -18,9 +22,17 @@ from browse.services.database import get_db_standalone, init_standalone
 from browse.services.scraper import scrape_all_repos
 
 
+def _default_orgs() -> str:
+    return os.environ.get("APPROVED_ORGS", "ParallelScience")
+
+
 def main():
-    ap = argparse.ArgumentParser(description="Scrape ParallelScience papers")
-    ap.add_argument("--org", default="ParallelScience", help="GitHub org name")
+    ap = argparse.ArgumentParser(description="Scrape papers from approved GitHub orgs")
+    ap.add_argument(
+        "--orgs",
+        default=_default_orgs(),
+        help="Comma-separated list of GitHub org names (default: $APPROVED_ORGS or ParallelScience)",
+    )
     ap.add_argument("--db", default="browse/data/papers.db", help="SQLite database path")
     ap.add_argument("--no-pdf", action="store_true", help="Skip PDF download")
     ap.add_argument("--pdf-dir", default="/rds/rds-ai-scientist/parallel-arxiv",
@@ -29,12 +41,17 @@ def main():
                     help="GCS bucket for PDFs")
     args = ap.parse_args()
 
+    orgs = [o.strip() for o in args.orgs.split(",") if o.strip()]
+    if not orgs:
+        print("No orgs configured — set APPROVED_ORGS or pass --orgs", file=sys.stderr)
+        sys.exit(2)
+
     init_standalone(args.db)
     conn = get_db_standalone()
 
     try:
         counts = scrape_all_repos(
-            conn, org=args.org,
+            conn, orgs=orgs,
             skip_pdf=args.no_pdf,
             local_pdf_dir=args.pdf_dir,
             gcs_bucket=args.gcs_bucket,
@@ -44,11 +61,6 @@ def main():
 
     print(f"\nDone: {counts['new']} new, {counts['updated']} updated, "
           f"{counts['unchanged']} unchanged, {counts['failed']} failed")
-
-    # Exit with code 1 if there were new or updated papers (used by deploy script)
-    if counts["new"] + counts["updated"] > 0:
-        sys.exit(0)
-    sys.exit(0)
 
 
 if __name__ == "__main__":

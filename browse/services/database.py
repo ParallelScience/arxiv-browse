@@ -18,22 +18,30 @@ log = logging.getLogger(__name__)
 _DB_PATH: str = ""
 _GCS_DB_URI: str = ""  # e.g. gs://parallel-arxiv-pdfs/papers.db
 
+CURRENT_SCHEMA_VERSION = 1
+
 SCHEMA_SQL = """
--- Persistent ID registry: append-only, one row per repo, never deleted
+-- Persistent ID registry: append-only, one row per (org, repo), never deleted.
+-- Multi-org support: two different orgs may have same-named repos; each gets
+-- its own stable PX ID drawn from the shared id_sequence pool.
 CREATE TABLE IF NOT EXISTS id_registry (
-    repo        TEXT PRIMARY KEY,
+    org         TEXT NOT NULL,
+    repo        TEXT NOT NULL,
     px_id       TEXT NOT NULL UNIQUE,
     yymm        TEXT NOT NULL,
-    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    PRIMARY KEY (org, repo)
 );
 
--- Next sequence number per month (avoids scanning id_registry for max)
+-- Next sequence number per month (avoids scanning id_registry for max).
+-- Shared across all orgs: external papers and internal papers draw from the
+-- same PX:YYMM.NNNNN pool, so the ID alone does not reveal provenance.
 CREATE TABLE IF NOT EXISTS id_sequence (
     yymm    TEXT PRIMARY KEY,
     next_n  INTEGER NOT NULL DEFAULT 1
 );
 
--- Papers table with version tracking
+-- Papers table with version tracking. source_org records provenance.
 CREATE TABLE IF NOT EXISTS papers (
     px_id               TEXT NOT NULL,
     version             INTEGER NOT NULL DEFAULT 1,
@@ -43,6 +51,7 @@ CREATE TABLE IF NOT EXISTS papers (
     abstract            TEXT NOT NULL,
     primary_category    TEXT NOT NULL,
     secondary_categories TEXT NOT NULL DEFAULT '[]',
+    source_org          TEXT NOT NULL DEFAULT 'ParallelScience',
     repo                TEXT NOT NULL,
     pages_url           TEXT NOT NULL,
     github_url          TEXT NOT NULL,
@@ -51,7 +60,7 @@ CREATE TABLE IF NOT EXISTS papers (
     scraped_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     content_hash        TEXT,
     PRIMARY KEY (px_id, version),
-    FOREIGN KEY (repo) REFERENCES id_registry(repo)
+    FOREIGN KEY (source_org, repo) REFERENCES id_registry(org, repo)
 );
 
 CREATE INDEX IF NOT EXISTS idx_papers_current ON papers(is_current) WHERE is_current = 1;
@@ -76,6 +85,100 @@ CREATE TABLE IF NOT EXISTS citations (
 CREATE INDEX IF NOT EXISTS idx_citations_cited_px ON citations(cited_px_id) WHERE cited_px_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_citations_citing ON citations(citing_px_id);
 """
+
+
+# ---------------------------------------------------------------------------
+# Schema migrations
+# ---------------------------------------------------------------------------
+
+_MIGRATION_V0_TO_V1 = """
+BEGIN;
+
+CREATE TABLE id_registry_new (
+    org         TEXT NOT NULL,
+    repo        TEXT NOT NULL,
+    px_id       TEXT NOT NULL UNIQUE,
+    yymm        TEXT NOT NULL,
+    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    PRIMARY KEY (org, repo)
+);
+INSERT INTO id_registry_new (org, repo, px_id, yymm, created_at)
+    SELECT 'ParallelScience', repo, px_id, yymm, created_at FROM id_registry;
+DROP TABLE id_registry;
+ALTER TABLE id_registry_new RENAME TO id_registry;
+
+CREATE TABLE papers_new (
+    px_id               TEXT NOT NULL,
+    version             INTEGER NOT NULL DEFAULT 1,
+    title               TEXT NOT NULL,
+    author              TEXT NOT NULL,
+    date                TEXT NOT NULL,
+    abstract            TEXT NOT NULL,
+    primary_category    TEXT NOT NULL,
+    secondary_categories TEXT NOT NULL DEFAULT '[]',
+    source_org          TEXT NOT NULL DEFAULT 'ParallelScience',
+    repo                TEXT NOT NULL,
+    pages_url           TEXT NOT NULL,
+    github_url          TEXT NOT NULL,
+    pdf_url             TEXT NOT NULL,
+    is_current          INTEGER NOT NULL DEFAULT 1,
+    scraped_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    content_hash        TEXT,
+    PRIMARY KEY (px_id, version),
+    FOREIGN KEY (source_org, repo) REFERENCES id_registry(org, repo)
+);
+INSERT INTO papers_new
+    (px_id, version, title, author, date, abstract, primary_category,
+     secondary_categories, source_org, repo, pages_url, github_url, pdf_url,
+     is_current, scraped_at, content_hash)
+SELECT
+     px_id, version, title, author, date, abstract, primary_category,
+     secondary_categories, 'ParallelScience', repo, pages_url, github_url, pdf_url,
+     is_current, scraped_at, content_hash
+FROM papers;
+DROP TABLE papers;
+ALTER TABLE papers_new RENAME TO papers;
+
+CREATE INDEX IF NOT EXISTS idx_papers_current ON papers(is_current) WHERE is_current = 1;
+CREATE INDEX IF NOT EXISTS idx_papers_category ON papers(primary_category) WHERE is_current = 1;
+CREATE INDEX IF NOT EXISTS idx_papers_author ON papers(author) WHERE is_current = 1;
+CREATE INDEX IF NOT EXISTS idx_papers_repo ON papers(repo);
+
+COMMIT;
+"""
+
+
+def _apply_schema(conn: sqlite3.Connection) -> None:
+    """Create schema on fresh DBs and run migrations on pre-existing ones.
+
+    Schema version is tracked via SQLite's ``PRAGMA user_version``:
+        0 → pre-multi-org (single hardcoded ParallelScience org)
+        1 → multi-org: id_registry keyed on (org, repo); papers has source_org
+    """
+    version = conn.execute("PRAGMA user_version").fetchone()[0]
+    if version >= CURRENT_SCHEMA_VERSION:
+        return
+
+    # Detect whether this DB has the legacy id_registry shape (no 'org' column).
+    # sqlite_master is empty on a brand-new DB → legacy=False and we just run
+    # SCHEMA_SQL below.
+    legacy = False
+    row = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='id_registry'"
+    ).fetchone()
+    if row:
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(id_registry)")}
+        legacy = "org" not in cols
+
+    if legacy:
+        # FKs disabled during rebuild; re-enabled after by the next connect().
+        conn.execute("PRAGMA foreign_keys=OFF")
+        conn.executescript(_MIGRATION_V0_TO_V1)
+        log.info("Migrated papers DB from v0 (single-org) to v1 (multi-org)")
+
+    conn.executescript(SCHEMA_SQL)
+    conn.execute(f"PRAGMA user_version = {CURRENT_SCHEMA_VERSION}")
+    conn.commit()
 
 
 def get_db_path() -> str:
@@ -222,8 +325,7 @@ def init_db(app: Flask) -> None:
 
     conn = _connect()
     try:
-        conn.executescript(SCHEMA_SQL)
-        conn.commit()
+        _apply_schema(conn)
     finally:
         conn.close()
 
@@ -239,7 +341,6 @@ def init_standalone(db_path: str) -> None:
 
     conn = _connect()
     try:
-        conn.executescript(SCHEMA_SQL)
-        conn.commit()
+        _apply_schema(conn)
     finally:
         conn.close()

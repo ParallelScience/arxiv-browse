@@ -236,8 +236,9 @@ def upsert_paper(
     repo = meta["repo"]
     content_hash = compute_content_hash(meta)
 
-    # Get or assign a stable PX ID
-    px_id = get_or_assign_id(conn, repo, meta["date"])
+    # Get or assign a stable PX ID (keyed on (org, repo) so different orgs
+    # can have same-named repos without collision).
+    px_id = get_or_assign_id(conn, org, repo, meta["date"])
 
     # Check if we already have this exact content
     existing = conn.execute(
@@ -273,9 +274,9 @@ def upsert_paper(
     conn.execute(
         "INSERT INTO papers "
         "(px_id, version, title, author, date, abstract, "
-        " primary_category, secondary_categories, repo, "
+        " primary_category, secondary_categories, source_org, repo, "
         " pages_url, github_url, pdf_url, is_current, content_hash) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)",
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)",
         (
             px_id,
             new_version,
@@ -285,6 +286,7 @@ def upsert_paper(
             meta["abstract"],
             meta["primary_category"],
             json.dumps(meta.get("secondary_categories", [])),
+            org,
             repo,
             meta["pages_url"],
             meta["github_url"],
@@ -325,43 +327,51 @@ def list_repos(org: str) -> list[str]:
 
 def scrape_all_repos(
     conn: sqlite3.Connection,
-    org: str = "ParallelScience",
+    orgs: str | list[str] = "ParallelScience",
     skip_pdf: bool = False,
     local_pdf_dir: str | None = LOCAL_PDF_DIR,
     gcs_bucket: str | None = GCS_BUCKET,
 ) -> dict[str, int]:
-    """Scrape all repos in the org. Returns counts: {new, updated, unchanged, failed}."""
-    repos = list_repos(org)
+    """Scrape all repos across the given org(s). Returns counts: {new, updated, unchanged, failed}.
+
+    Accepts either a single org name (backward-compatible) or a list of
+    approved orgs. Each org's repos are enumerated independently via
+    GitHub's REST API and then scraped the same way.
+    """
+    if isinstance(orgs, str):
+        orgs = [orgs]
     counts = {"new": 0, "updated": 0, "unchanged": 0, "failed": 0}
 
-    print(f"Found {len(repos)} repos in {org}")
-    for repo in repos:
-        print(f"  {repo}...", end=" ", flush=True)
-        meta = scrape_single_repo(org, repo)
-        if not meta:
-            print("skip")
-            counts["failed"] += 1
-            continue
-        try:
-            px_id, version, action = upsert_paper(
-                conn, meta, org,
-                local_pdf_dir=local_pdf_dir,
-                gcs_bucket=gcs_bucket,
-                skip_pdf=skip_pdf,
-            )
-            print(f"{action} → {px_id} v{version}", end="")
-            counts[action] += 1
-            # Extract citations from bibliography
+    for org in orgs:
+        repos = list_repos(org)
+        print(f"Found {len(repos)} repos in {org}")
+        for repo in repos:
+            print(f"  {org}/{repo}...", end=" ", flush=True)
+            meta = scrape_single_repo(org, repo)
+            if not meta:
+                print("skip")
+                counts["failed"] += 1
+                continue
             try:
-                from browse.services.citations import scrape_citations
-                cite_count = scrape_citations(conn, org, repo, px_id)
-                if cite_count:
-                    print(f" ({cite_count} citations)", end="")
+                px_id, version, action = upsert_paper(
+                    conn, meta, org,
+                    local_pdf_dir=local_pdf_dir,
+                    gcs_bucket=gcs_bucket,
+                    skip_pdf=skip_pdf,
+                )
+                print(f"{action} → {px_id} v{version}", end="")
+                counts[action] += 1
+                # Extract citations from bibliography
+                try:
+                    from browse.services.citations import scrape_citations
+                    cite_count = scrape_citations(conn, org, repo, px_id)
+                    if cite_count:
+                        print(f" ({cite_count} citations)", end="")
+                except Exception as exc:
+                    log.warning("Citation extraction failed for %s/%s: %s", org, repo, exc)
+                print()
             except Exception as exc:
-                log.warning("Citation extraction failed for %s: %s", repo, exc)
-            print()
-        except Exception as exc:
-            print(f"ERROR: {exc}", file=sys.stderr)
-            counts["failed"] += 1
+                print(f"ERROR: {exc}", file=sys.stderr)
+                counts["failed"] += 1
 
     return counts
