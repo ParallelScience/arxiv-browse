@@ -232,15 +232,30 @@ def _gcs_public_url() -> str:
 
 
 def _download_from_gcs() -> bool:
-    """Download the DB from GCS to _DB_PATH via public URL. Returns True on success."""
+    """Download the DB from GCS to _DB_PATH. Returns True on success.
+
+    Uses the authenticated ``google-cloud-storage`` client rather than the
+    public ``storage.googleapis.com`` URL. The public URL is served through
+    Google's frontend HTTP cache — after an upload, stale copies can be
+    served for minutes, which once caused the container to cold-start with
+    a 46-paper snapshot while GCS already held 107 papers, putting the
+    authoritative copy at risk of being overwritten on the next sync.
+    The authenticated API hits the GCS storage tier directly, no CDN.
+    """
     if not _GCS_DB_URI:
         print("[PX] GCS_DB_URI not set, skipping download", flush=True)
         return False
     try:
-        import urllib.request
-        url = _gcs_public_url()
-        print(f"[PX] Downloading DB from {url}", flush=True)
-        urllib.request.urlretrieve(url, _DB_PATH)
+        from google.cloud import storage
+        bucket_name, blob_path = _parse_gcs_uri(_GCS_DB_URI)
+        print(
+            f"[PX] Downloading DB from gs://{bucket_name}/{blob_path} "
+            f"(authenticated API, bypasses CDN)",
+            flush=True,
+        )
+        client = storage.Client()
+        blob = client.bucket(bucket_name).blob(blob_path)
+        blob.download_to_filename(_DB_PATH)
         size = os.path.getsize(_DB_PATH)
         import sqlite3 as _sql
         _c = _sql.connect(_DB_PATH)
