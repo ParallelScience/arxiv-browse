@@ -254,7 +254,15 @@ def _download_from_gcs() -> bool:
 
 
 def sync_to_gcs() -> bool:
-    """Upload the current DB to GCS. Call after any write operation."""
+    """Upload the current DB to GCS. Call after any write operation.
+
+    After a successful upload, best-effort nudges the downstream stats API
+    (parallelscience-site's StatsBox source) to re-download the new DB —
+    otherwise it runs on a 30-minute polling cadence. Controlled by the
+    ``STATS_API_REFRESH_URL`` + ``STATS_API_ADMIN_KEY`` env vars; if either
+    is unset, the push is skipped and stats fall back to their periodic
+    poll.
+    """
     if not _GCS_DB_URI:
         return False
     # Checkpoint WAL into the main DB file before uploading
@@ -271,10 +279,41 @@ def sync_to_gcs() -> bool:
         blob = bucket.blob(blob_path)
         blob.upload_from_filename(_DB_PATH)
         print(f"[PX] Uploaded DB to gs://{bucket_name}/{blob_path}", flush=True)
+        _notify_stats_api_async()
         return True
     except Exception as exc:
         print(f"[PX] FAILED to upload DB to GCS: {exc}", flush=True)
         return False
+
+
+def _notify_stats_api_async() -> None:
+    """Fire a POST to the stats-API refresh endpoint in a background thread.
+
+    Non-blocking so ingest latency isn't affected. Any failure is logged
+    and swallowed — the stats service's periodic poll will catch up.
+    """
+    url = os.environ.get("STATS_API_REFRESH_URL", "")
+    key = os.environ.get("STATS_API_ADMIN_KEY", "")
+    if not url or not key:
+        return
+
+    import threading
+    import urllib.request
+
+    def _ping():
+        try:
+            req = urllib.request.Request(
+                url,
+                data=b"",
+                method="POST",
+                headers={"X-Admin-Key": key, "Content-Length": "0"},
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                print(f"[PX] stats-api refresh pinged: {resp.status}", flush=True)
+        except Exception as exc:
+            print(f"[PX] stats-api refresh ping failed: {exc}", flush=True)
+
+    threading.Thread(target=_ping, daemon=True).start()
 
 
 # ---------------------------------------------------------------------------
