@@ -1,22 +1,24 @@
 """Persistent PX ID registry.
 
-IDs are assigned once per repo and never change. Format: YYMM.NNNNN
-(e.g., 2604.00001 = first paper of April 2026).
+IDs are assigned once per (org, repo) and never change. Format: YYMM.NNNNN
+(e.g., 2604.00001 = first paper of April 2026). The numbering pool is
+shared across all approved orgs — external papers and internal papers are
+indistinguishable by ID alone; provenance is tracked via the ``org`` column.
 """
 
 import re
 import sqlite3
 
 
-def get_or_assign_id(conn: sqlite3.Connection, repo: str, date: str) -> str:
-    """Look up or assign a PX ID for the given repo.
+def get_or_assign_id(conn: sqlite3.Connection, org: str, repo: str, date: str) -> str:
+    """Look up or assign a PX ID for the given (org, repo).
 
-    If the repo already has an ID, return it. Otherwise, derive YYMM from
-    *date* (YYYY-MM-DD ...), atomically allocate the next sequence number,
-    and persist the mapping.
+    If the pair already has an ID, return it. Otherwise, derive YYMM from
+    *date* (YYYY-MM-DD ...), atomically allocate the next sequence number
+    from the shared pool, and persist the mapping.
     """
     row = conn.execute(
-        "SELECT px_id FROM id_registry WHERE repo = ?", (repo,)
+        "SELECT px_id FROM id_registry WHERE org = ? AND repo = ?", (org, repo)
     ).fetchone()
     if row:
         return row["px_id"]
@@ -37,17 +39,17 @@ def get_or_assign_id(conn: sqlite3.Connection, repo: str, date: str) -> str:
     px_id = f"{yymm}.{seq:05d}"
 
     conn.execute(
-        "INSERT INTO id_registry (repo, px_id, yymm) VALUES (?, ?, ?)",
-        (repo, px_id, yymm),
+        "INSERT INTO id_registry (org, repo, px_id, yymm) VALUES (?, ?, ?, ?)",
+        (org, repo, px_id, yymm),
     )
     conn.commit()
     return px_id
 
 
-def get_id_for_repo(conn: sqlite3.Connection, repo: str) -> str | None:
-    """Pure lookup — returns None if repo has no assigned ID."""
+def get_id_for_repo(conn: sqlite3.Connection, org: str, repo: str) -> str | None:
+    """Pure lookup — returns None if (org, repo) has no assigned ID."""
     row = conn.execute(
-        "SELECT px_id FROM id_registry WHERE repo = ?", (repo,)
+        "SELECT px_id FROM id_registry WHERE org = ? AND repo = ?", (org, repo)
     ).fetchone()
     return row["px_id"] if row else None
 

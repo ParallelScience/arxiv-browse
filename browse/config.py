@@ -26,10 +26,25 @@ class Settings(arxiv_base.Settings):
     """Path to the SQLite database for papers."""
 
     WEBHOOK_SECRET: str = os.environ.get("WEBHOOK_SECRET", "")
-    """GitHub webhook HMAC secret for signature validation."""
+    """GitHub webhook HMAC secret for the default (ParallelScience) org.
 
-    GITHUB_ORG: str = "ParallelScience"
-    """GitHub organization to scrape."""
+    External orgs use per-org secrets instead, set via
+    ``WEBHOOK_SECRET_<ORG_UPPERCASE>`` environment variables. The per-org
+    lookup is performed by ``secret_for_org()`` in ``routes/webhook.py``.
+    """
+
+    APPROVED_ORGS: list[str] = [
+        o.strip()
+        for o in os.environ.get("APPROVED_ORGS", "ParallelScience").split(",")
+        if o.strip()
+    ]
+    """GitHub organizations allowed to submit papers via the webhook.
+
+    Comma-separated in the ``APPROVED_ORGS`` env var (e.g.
+    ``"ParallelScience,AcmeLabs"``). Defaults to just ``ParallelScience``
+    so existing deployments keep working unchanged. Also drives the
+    batch scraper in ``scripts/scrape_papers.py``.
+    """
 
     GCS_BUCKET: str = "parallel-arxiv-pdfs"
     """GCS bucket for PDF storage."""

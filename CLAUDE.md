@@ -66,11 +66,14 @@ When a paper's content changes (title, author, abstract, or categories), a new v
 
 ### GitHub Webhook
 
-An org-level webhook on ParallelScience fires `page_build` events to `POST /webhook/github`. The endpoint:
-- Validates the HMAC signature (`X-Hub-Signature-256`) against `WEBHOOK_SECRET`
+Each approved GitHub org installs its own org-level webhook that fires `page_build` events to `POST /webhook/github`. The endpoint:
+- Reads the claimed org from `payload.organization.login` and rejects it with 403 if it isn't in `APPROVED_ORGS` (comma-separated env var, defaults to `ParallelScience`)
+- Validates the HMAC signature (`X-Hub-Signature-256`) against that org's secret — `WEBHOOK_SECRET_<ORG_UPPERCASE>` (with legacy `WEBHOOK_SECRET` as the fallback for `ParallelScience`)
 - Filters for successful builds (`build.status == "built"`)
-- Scrapes the repo's Pages site and upserts the paper
+- Scrapes the repo's Pages site and upserts the paper (stamped with `source_org` for provenance)
 - Syncs the DB to GCS after any write
+
+External submitters use the [paper-template](https://github.com/ParallelScience/paper-template) repo; see [`paper-template/README.md`](../paper-template/README.md) for the per-org onboarding steps.
 
 ### Pages
 
@@ -132,9 +135,11 @@ The DB is stored in GCS and downloaded to `/tmp` on container cold start. After 
 ## Environment Variables
 
 ```bash
-WEBHOOK_SECRET="..."              # GitHub webhook HMAC secret
+APPROVED_ORGS="ParallelScience,AcmeLabs"         # Comma-separated orgs allowed to submit
+WEBHOOK_SECRET="..."                             # Legacy fallback, used only for ParallelScience
+WEBHOOK_SECRET_ACMELABS="..."                    # Per-org secret: WEBHOOK_SECRET_<ORG_UPPERCASE>
 GCS_DB_URI="gs://parallel-arxiv-pdfs/papers.db"  # GCS path for DB persistence
-GITHUB_TOKEN="..."                # Optional: higher GitHub API rate limits for scraper
+GITHUB_TOKEN="..."                               # Optional: higher GitHub API rate limits for scraper
 ```
 
 ## GitHub Webhook Setup
