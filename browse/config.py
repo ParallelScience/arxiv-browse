@@ -7,7 +7,9 @@ from typing import Optional
 import logging
 
 import arxiv.config as arxiv_base
-from pydantic import SecretStr, PyObject
+from typing import Annotated
+from pydantic import SecretStr, PyObject, field_validator
+from pydantic_settings import NoDecode
 
 log = logging.getLogger(__name__)
 
@@ -33,18 +35,26 @@ class Settings(arxiv_base.Settings):
     lookup is performed by ``secret_for_org()`` in ``routes/webhook.py``.
     """
 
-    APPROVED_ORGS: list[str] = [
-        o.strip()
-        for o in os.environ.get("APPROVED_ORGS", "ParallelScience").split(",")
-        if o.strip()
-    ]
+    APPROVED_ORGS: Annotated[list[str], NoDecode] = ["ParallelScience"]
     """GitHub organizations allowed to submit papers via the webhook.
 
     Comma-separated in the ``APPROVED_ORGS`` env var (e.g.
     ``"ParallelScience,AcmeLabs"``). Defaults to just ``ParallelScience``
     so existing deployments keep working unchanged. Also drives the
     batch scraper in ``scripts/scrape_papers.py``.
+
+    ``NoDecode`` disables pydantic_settings' default JSON decoding of
+    complex env values (it tried ``json.loads("ParallelScience,AstroPilot-AI")``
+    and crashed cold-start on Cloud Run). The ``_parse_approved_orgs``
+    validator below handles the CSV-to-list conversion instead.
     """
+
+    @field_validator("APPROVED_ORGS", mode="before")
+    @classmethod
+    def _parse_approved_orgs(cls, v):
+        if isinstance(v, str):
+            return [o.strip() for o in v.split(",") if o.strip()]
+        return v
 
     GCS_BUCKET: str = "parallel-arxiv-pdfs"
     """GCS bucket for PDF storage."""
