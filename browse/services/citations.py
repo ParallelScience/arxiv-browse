@@ -112,16 +112,27 @@ def extract_arxiv_id(entry: dict) -> str | None:
 
 
 def upsert_citations(conn: sqlite3.Connection, citing_px_id: str, entries: list[dict]) -> int:
-    """Replace all citations for a paper with freshly parsed entries."""
+    """Replace all citations for a paper with freshly parsed entries.
+
+    Returns the number of distinct rows written. If the source .bib has
+    duplicate citation keys (common in auto-generated bibliographies), the
+    later occurrence wins — matching what ``INSERT OR REPLACE`` would do —
+    and the count reflects distinct keys, not attempted inserts.
+    """
     conn.execute("DELETE FROM citations WHERE citing_px_id = ?", (citing_px_id,))
 
-    count = 0
+    # Deduplicate on citation_key, preserving insertion order so the last
+    # occurrence overwrites earlier ones (Python 3.7+ dicts retain order).
+    by_key: dict[str, dict] = {}
     for entry in entries:
+        by_key[entry["citation_key"]] = entry
+
+    for entry in by_key.values():
         cited_px_id = resolve_cited_px_id(entry, conn)
         arxiv_id = extract_arxiv_id(entry) if not cited_px_id else None
 
         conn.execute(
-            "INSERT OR REPLACE INTO citations "
+            "INSERT INTO citations "
             "(citing_px_id, citation_key, cited_px_id, arxiv_id, doi, title, authors, year) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (
@@ -135,10 +146,9 @@ def upsert_citations(conn: sqlite3.Connection, citing_px_id: str, entries: list[
                 entry.get("year") or None,
             ),
         )
-        count += 1
 
     conn.commit()
-    return count
+    return len(by_key)
 
 
 def scrape_citations(conn: sqlite3.Connection, org: str, repo: str, px_id: str) -> int:
