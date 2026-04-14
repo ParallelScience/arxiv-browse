@@ -19,16 +19,23 @@ blueprint = Blueprint("webhook", __name__, url_prefix="/webhook")
 log = logging.getLogger(__name__)
 
 
+def _env_key_for_org(org: str) -> str:
+    """Derive the per-org secret env var name. Hyphens in org names (e.g.
+    ``AstroPilot-AI``) are mapped to underscores since POSIX env var names
+    can't contain hyphens."""
+    return f"WEBHOOK_SECRET_{org.upper().replace('-', '_')}"
+
+
 def secret_for_org(org: str) -> str:
     """Return the webhook HMAC secret configured for *org*, or ``""`` if none.
 
     Resolution order:
-        1. ``WEBHOOK_SECRET_<ORG_UPPERCASE>`` env var
+        1. ``WEBHOOK_SECRET_<ORG_UPPERCASE>`` env var (hyphens → underscores,
+           e.g. ``AstroPilot-AI`` → ``WEBHOOK_SECRET_ASTROPILOT_AI``)
         2. For ``ParallelScience``, fall back to the legacy ``WEBHOOK_SECRET``
            setting so the existing single-org deployment keeps working.
     """
-    env_key = f"WEBHOOK_SECRET_{org.upper()}"
-    secret = os.environ.get(env_key, "")
+    secret = os.environ.get(_env_key_for_org(org), "")
     if secret:
         return secret
     if org == "ParallelScience":

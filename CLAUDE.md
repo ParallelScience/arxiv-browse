@@ -135,9 +135,11 @@ The DB is stored in GCS and downloaded to `/tmp` on container cold start. After 
 ## Environment Variables
 
 ```bash
-APPROVED_ORGS="ParallelScience,AcmeLabs"         # Comma-separated orgs allowed to submit
+APPROVED_ORGS="ParallelScience,AstroPilot-AI"    # Comma-separated orgs allowed to submit
 WEBHOOK_SECRET="..."                             # Legacy fallback, used only for ParallelScience
-WEBHOOK_SECRET_ACMELABS="..."                    # Per-org secret: WEBHOOK_SECRET_<ORG_UPPERCASE>
+WEBHOOK_SECRET_ASTROPILOT_AI="..."               # Per-org secret: WEBHOOK_SECRET_<ORG_UPPERCASE>
+                                                 # (hyphens in org names map to underscores, e.g.
+                                                 #  AstroPilot-AI -> ASTROPILOT_AI)
 GCS_DB_URI="gs://parallel-arxiv-pdfs/papers.db"  # GCS path for DB persistence
 GITHUB_TOKEN="..."                               # Optional: higher GitHub API rate limits for scraper
 ```

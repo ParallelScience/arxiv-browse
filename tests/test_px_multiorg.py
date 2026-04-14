@@ -327,6 +327,32 @@ def test_webhook_cross_org_signature_forgery_rejected(webhook_app, monkeypatch):
     assert resp.status_code == 403
 
 
+def test_webhook_hyphenated_org_name_maps_to_underscored_env_var(webhook_app, monkeypatch):
+    """Orgs with hyphens (AstroPilot-AI) must look up secrets under the
+    underscored env var name (WEBHOOK_SECRET_ASTROPILOT_AI) — POSIX env
+    var names can't contain hyphens."""
+    webhook_app.config["APPROVED_ORGS"] = ["AstroPilot-AI"]
+    monkeypatch.setenv("WEBHOOK_SECRET_ASTROPILOT_AI", "astro-secret")
+    # Stub scraper to keep the test hermetic (no live HTTP).
+    import browse.services.scraper as scraper_mod
+    monkeypatch.setattr(scraper_mod, "scrape_single_repo", lambda org, repo: None)
+
+    body = _page_build_payload("AstroPilot-AI", "paper")
+    client = webhook_app.test_client()
+    resp = client.post(
+        "/webhook/github",
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "X-GitHub-Event": "page_build",
+            "X-Hub-Signature-256": _sign("astro-secret", body),
+        },
+    )
+    # Signature validated against the correctly-named env var → auth passes
+    # (204 "no paper metadata" since we stubbed the scraper).
+    assert resp.status_code == 204
+
+
 def test_webhook_accepts_valid_signed_page_build(webhook_app, monkeypatch):
     """An approved org with the correct signature gets past auth.
 

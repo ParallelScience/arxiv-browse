@@ -92,6 +92,8 @@ CREATE INDEX IF NOT EXISTS idx_citations_citing ON citations(citing_px_id);
 # ---------------------------------------------------------------------------
 
 _MIGRATION_V0_TO_V1 = """
+BEGIN;
+
 CREATE TABLE id_registry_new (
     org         TEXT NOT NULL,
     repo        TEXT NOT NULL,
@@ -141,6 +143,8 @@ CREATE INDEX IF NOT EXISTS idx_papers_current ON papers(is_current) WHERE is_cur
 CREATE INDEX IF NOT EXISTS idx_papers_category ON papers(primary_category) WHERE is_current = 1;
 CREATE INDEX IF NOT EXISTS idx_papers_author ON papers(author) WHERE is_current = 1;
 CREATE INDEX IF NOT EXISTS idx_papers_repo ON papers(repo);
+
+COMMIT;
 """
 
 
