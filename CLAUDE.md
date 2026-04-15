@@ -131,17 +131,18 @@ Deployed to Google Cloud Run with max 1 instance (avoids DB race conditions).
 - **Max instances**: 1 (handles ~500 req/s, sufficient for 1M+ daily page views)
 
 ```bash
+# Plain env vars only — secrets live in Secret Manager and are mounted below.
 gcloud run deploy arxiv-browse \
   --source . \
   --region us-central1 \
   --allow-unauthenticated \
   --port 8080 \
   --max-instances 1 \
-  --set-env-vars "WEBHOOK_SECRET=<secret>,GCS_DB_URI=gs://parallel-arxiv-pdfs/papers.db" \
+  --update-env-vars "GCS_DB_URI=gs://parallel-arxiv-pdfs/papers.db,APPROVED_ORGS=ParallelScience,AstroPilot-AI,STATS_API_REFRESH_URL=https://parallel-science-api-cwoiukrdxq-uc.a.run.app/admin/refresh-db?target=papers" \
   --quiet
 ```
 
-The DB is stored in GCS and downloaded to `/tmp` on container cold start. After webhook writes, it's synced back to GCS. The baked-in `papers.db` in the Docker image serves as a fallback if GCS is unavailable.
+The DB is stored in GCS and downloaded to `/tmp` on container cold start via the **authenticated** `google-cloud-storage` client (not the public `storage.googleapis.com/...` URL — that goes through Google's frontend HTTP cache and has burned us once). After webhook writes it's synced back to GCS. The baked-in `papers.db` in the Docker image serves as a fallback if the authenticated GCS download fails.
 
 ### GCS Storage
 
@@ -149,19 +150,76 @@ The DB is stored in GCS and downloaded to `/tmp` on container cold start. After 
 - **`papers.db`** — The SQLite database (~60KB at 7 papers, grows ~2KB per paper)
 - **`<px_id>v<N>.pdf`** — Versioned PDFs (e.g., `2604.00001v1.pdf`)
 
-## Environment Variables
+## Environment Variables & Secrets
+
+Non-sensitive configuration is set as plain env vars; secrets are mounted from Google Secret Manager so they can't be accidentally cleared by a stray `--update-env-vars` (which happened once and broke ParallelScience ingestion for ~6 hours).
+
+**Plain env vars** (visible in `gcloud run describe`):
 
 ```bash
-APPROVED_ORGS="ParallelScience,AstroPilot-AI"    # Comma-separated orgs allowed to submit
-WEBHOOK_SECRET="..."                             # Legacy fallback, used only for ParallelScience
-WEBHOOK_SECRET_ASTROPILOT_AI="..."               # Per-org webhook secret: WEBHOOK_SECRET_<ORG_UPPERCASE>
-                                                 # (hyphens in org names map to underscores, e.g.
-                                                 #  AstroPilot-AI -> ASTROPILOT_AI)
-API_KEY_ASTROPILOT_AI="pxak_..."                 # Per-org REST API bearer token: API_KEY_<ORG_UPPERCASE>
-                                                 # Format: pxak_ + 64 hex chars. Used by POST /api/v1/papers.
-GCS_DB_URI="gs://parallel-arxiv-pdfs/papers.db"  # GCS path for DB persistence
-GITHUB_TOKEN="..."                               # Optional: higher GitHub API rate limits for scraper
+APPROVED_ORGS="ParallelScience,AstroPilot-AI"             # Comma-separated orgs allowed to submit
+GCS_DB_URI="gs://parallel-arxiv-pdfs/papers.db"           # GCS path for DB persistence
+STATS_API_REFRESH_URL="https://.../admin/refresh-db?target=papers"  # Push target for stats refresh
+GITHUB_TOKEN="..."                                        # Optional: higher GitHub API rate limits for the scraper
 ```
+
+**Secrets** (each mounted via `--update-secrets ENV=<secret-name>:latest`, `secretmanager.secretAccessor` granted to the Cloud Run service account):
+
+| Env var the app reads | Secret Manager name | Purpose |
+|---|---|---|
+| `WEBHOOK_SECRET` | `webhook-secret-parallelscience` | Legacy fallback, used only for ParallelScience's webhook |
+| `WEBHOOK_SECRET_<ORG>` (e.g. `WEBHOOK_SECRET_ASTROPILOT_AI`) | `webhook-secret-<org-slug>` (e.g. `webhook-secret-astropilot-ai`) | Per-org GitHub webhook HMAC secret. Hyphens in org names map to underscores in the env-var name |
+| `API_KEY_<ORG>` (e.g. `API_KEY_ASTROPILOT_AI`) | `api-key-<org-slug>` | Per-org Bearer token for `POST /api/v1/papers`. Format: `pxak_<64 hex>` |
+| `STATS_API_ADMIN_KEY` | `stats-api-admin-key` | Shared with `parallel-science-api`'s `PX_API_ADMIN_API_KEY` to authenticate the after-sync refresh ping |
+
+## Rotating a secret
+
+All secret rotations use the same pattern: add a new version to Secret Manager, then either wait for the next cold-start or force a revision bump so the container picks up `...:latest`.
+
+**Rotate a webhook secret** (example: ParallelScience):
+
+```bash
+# 1. Generate and push the new value as a new version
+python3 -c "import secrets; print(secrets.token_hex(32))" | \
+  gcloud secrets versions add webhook-secret-parallelscience --data-file=-
+
+# 2. Install the same value on the GitHub org webhook
+NEW=$(gcloud secrets versions access latest --secret=webhook-secret-parallelscience)
+gh api orgs/ParallelScience/hooks/604632963 --method PATCH --input - <<EOF
+{"config": {"url": "https://papers.parallelscience.org/webhook/github",
+            "content_type": "json", "secret": "$NEW", "insecure_ssl": "0"}}
+EOF
+
+# 3. Force the container to re-read the mount (cold start)
+gcloud run services update arxiv-browse --region us-central1 \
+  --update-env-vars "FORCE_COLD_START=$(date +%s)" --quiet
+```
+
+**Rotate an API key** (example: AstroPilot-AI):
+
+```bash
+# 1. Generate pxak_<hex> and push as a new secret version
+python3 -c "import secrets; print(f'pxak_{secrets.token_hex(32)}')" | \
+  gcloud secrets versions add api-key-astropilot-ai --data-file=-
+
+# 2. Distribute the new value to the submitter (out of band)
+gcloud secrets versions access latest --secret=api-key-astropilot-ai
+
+# 3. Force cold start as above so the container re-reads the mount.
+```
+
+**Rotate the stats admin key** (arxiv-browse ↔ parallel-science-api):
+
+```bash
+python3 -c "import secrets; print(f'psak_{secrets.token_hex(32)}')" | \
+  gcloud secrets versions add stats-api-admin-key --data-file=-
+
+# Both services read from the same secret — force cold start on both
+gcloud run services update arxiv-browse         --region us-central1 --update-env-vars "FORCE_COLD_START=$(date +%s)" --quiet
+gcloud run services update parallel-science-api --region us-central1 --update-env-vars "FORCE_COLD_START=$(date +%s)" --quiet
+```
+
+Nothing in the Cloud Run service config needs to change during a rotation — `--update-secrets ENV=name:latest` is sticky across revisions; adding a new version is enough.
 
 ## GitHub Webhook Setup
 
