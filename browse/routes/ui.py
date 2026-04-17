@@ -101,6 +101,21 @@ def _format_paper_for_template(paper: dict) -> dict:
     }
 
 
+def _external_cited_by(px_id: str) -> list[dict]:
+    """Best-effort external-citations lookup for the abs page.
+
+    Older DB snapshots synced before the v1→v2 migration won't have the
+    ``external_citations`` table yet, so we swallow that error and hide
+    the UI section rather than 500 the whole abs page.
+    """
+    from browse.services.database import get_db
+    from browse.services.external_citations import get_external_cited_by
+    try:
+        return get_external_cited_by(get_db(), px_id)
+    except Exception:
+        return []
+
+
 @blueprint.route("abs/<px_id>")
 def abstract(px_id: str) -> Response:
     """Abstract page for a paper (current version)."""
@@ -109,7 +124,10 @@ def abstract(px_id: str) -> Response:
     if paper is None:
         return render_template("abs/not_found.html", px_id=px_id), status.NOT_FOUND, {}
     paper = _format_paper_for_template(paper)
-    return render_template("abs/abs.html", paper=paper), status.OK, {}
+    external_cited_by = _external_cited_by(px_id)
+    return render_template(
+        "abs/abs.html", paper=paper, external_cited_by=external_cited_by,
+    ), status.OK, {}
 
 
 @blueprint.route("abs/<px_id>v<int:version>")
@@ -120,7 +138,10 @@ def abstract_version(px_id: str, version: int) -> Response:
     if paper is None:
         return render_template("abs/not_found.html", px_id=px_id), status.NOT_FOUND, {}
     paper = _format_paper_for_template(paper)
-    return render_template("abs/abs.html", paper=paper), status.OK, {}
+    external_cited_by = _external_cited_by(px_id)
+    return render_template(
+        "abs/abs.html", paper=paper, external_cited_by=external_cited_by,
+    ), status.OK, {}
 
 
 @blueprint.route("bibtex/<px_id>")

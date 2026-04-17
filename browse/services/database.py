@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 _DB_PATH: str = ""
 _GCS_DB_URI: str = ""  # e.g. gs://parallel-arxiv-pdfs/papers.db
 
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2
 
 SCHEMA_SQL = """
 -- Persistent ID registry: append-only, one row per (org, repo), never deleted.
@@ -84,6 +84,32 @@ CREATE TABLE IF NOT EXISTS citations (
 
 CREATE INDEX IF NOT EXISTS idx_citations_cited_px ON citations(cited_px_id) WHERE cited_px_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_citations_citing ON citations(citing_px_id);
+
+-- External citations: papers on regular arXiv (and later bioRxiv/medRxiv) that
+-- reference PX papers. Populated by scripts/scrape_external_citations.py.
+CREATE TABLE IF NOT EXISTS external_citations (
+    cited_px_id      TEXT NOT NULL,
+    source           TEXT NOT NULL,
+    external_id      TEXT NOT NULL,
+    external_version TEXT,
+    title            TEXT,
+    authors          TEXT,
+    year             TEXT,
+    match_method     TEXT NOT NULL,
+    posted_date      TEXT,
+    discovered_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    PRIMARY KEY (cited_px_id, source, external_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ext_cite_cited ON external_citations(cited_px_id);
+CREATE INDEX IF NOT EXISTS idx_ext_cite_source ON external_citations(source, external_id);
+
+-- Bookkeeping for the daily external-citation scraper: one row per source.
+CREATE TABLE IF NOT EXISTS external_scraper_state (
+    source               TEXT PRIMARY KEY,
+    last_processed_date  TEXT NOT NULL,
+    last_run_at          TEXT NOT NULL
+);
 """
 
 
