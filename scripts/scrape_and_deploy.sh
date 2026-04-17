@@ -29,6 +29,10 @@ if [ "$OLD_HASH" = "$NEW_HASH" ]; then
   exit 0
 fi
 
+GCS_URI="${GCS_DB_URI:-gs://parallel-arxiv-pdfs/papers.db}"
+echo "$(date) — Syncing updated DB to $GCS_URI..."
+gsutil cp "$DB_PATH" "$GCS_URI"
+
 echo "$(date) — Changes detected. Deploying to Cloud Run..."
 gcloud run deploy arxiv-browse \
   --source . \
