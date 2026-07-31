@@ -138,7 +138,7 @@ gcloud run deploy arxiv-browse \
   --allow-unauthenticated \
   --port 8080 \
   --max-instances 1 \
-  --update-env-vars "GCS_DB_URI=gs://parallel-arxiv-pdfs/papers.db,APPROVED_ORGS=ParallelScience,AstroPilot-AI,STATS_API_REFRESH_URL=https://parallel-science-api-cwoiukrdxq-uc.a.run.app/admin/refresh-db?target=papers" \
+  --update-env-vars "^@^GCS_DB_URI=gs://parallel-arxiv-pdfs/papers.db@APPROVED_ORGS=ParallelScience,AstroPilot-AI,DenarioVM@STATS_API_REFRESH_URL=https://parallel-science-api-cwoiukrdxq-uc.a.run.app/admin/refresh-db?target=papers" \
   --quiet
 ```
 
@@ -157,7 +157,9 @@ Non-sensitive configuration is set as plain env vars; secrets are mounted from G
 **Plain env vars** (visible in `gcloud run describe`):
 
 ```bash
-APPROVED_ORGS="ParallelScience,AstroPilot-AI"             # Comma-separated orgs allowed to submit
+APPROVED_ORGS="ParallelScience,AstroPilot-AI,DenarioVM"   # Comma-separated orgs allowed to submit
+                                                          # (DenarioVM is API-only: no GitHub org, papers
+                                                          #  arrive from denario-vm via POST /api/v1/papers)
 GCS_DB_URI="gs://parallel-arxiv-pdfs/papers.db"           # GCS path for DB persistence
 STATS_API_REFRESH_URL="https://.../admin/refresh-db?target=papers"  # Push target for stats refresh
 GITHUB_TOKEN="..."                                        # Optional: higher GitHub API rate limits for the scraper
@@ -169,7 +171,7 @@ GITHUB_TOKEN="..."                                        # Optional: higher Git
 |---|---|---|
 | `WEBHOOK_SECRET` | `webhook-secret-parallelscience` | Legacy fallback, used only for ParallelScience's webhook |
 | `WEBHOOK_SECRET_<ORG>` (e.g. `WEBHOOK_SECRET_ASTROPILOT_AI`) | `webhook-secret-<org-slug>` (e.g. `webhook-secret-astropilot-ai`) | Per-org GitHub webhook HMAC secret. Hyphens in org names map to underscores in the env-var name |
-| `API_KEY_<ORG>` (e.g. `API_KEY_ASTROPILOT_AI`) | `api-key-<org-slug>` | Per-org Bearer token for `POST /api/v1/papers`. Format: `pxak_<64 hex>` |
+| `API_KEY_<ORG>` (e.g. `API_KEY_ASTROPILOT_AI`, `API_KEY_DENARIOVM`) | `api-key-<org-slug>` (e.g. `api-key-denariovm`) | Per-org Bearer token for `POST /api/v1/papers`. Format: `pxak_<64 hex>`. The DenarioVM key is shared with denario-vm's `parallel-arxiv-api-key` secret (project `denario-web-500308`) |
 | `STATS_API_ADMIN_KEY` | `stats-api-admin-key` | Shared with `parallel-science-api`'s `PX_API_ADMIN_API_KEY` to authenticate the after-sync refresh ping |
 
 ## Rotating a secret

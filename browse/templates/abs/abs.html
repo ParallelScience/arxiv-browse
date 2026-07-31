@@ -60,8 +60,9 @@
       <h3>Access Paper</h3>
       <ul>
         <li><a href="/pdf/{{ paper.px_id }}{% if paper.version > 1 %}v{{ paper.version }}{% endif %}">PDF</a></li>
-        <li><a href="{{ paper.pages_url }}">Paper Page</a></li>
-        <li><a href="{{ paper.github_url }}">GitHub</a></li>
+        {# API-ingested papers (e.g. DenarioVM) have no Pages site or GitHub repo — omit, not 404 #}
+        {% if paper.pages_url %}<li><a href="{{ paper.pages_url }}">Paper Page</a></li>{% endif %}
+        {% if paper.github_url %}<li><a href="{{ paper.github_url }}">GitHub</a></li>{% endif %}
       </ul>
     </div>
     <div class="full-text">
