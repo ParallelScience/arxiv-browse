@@ -166,16 +166,55 @@ def pdf_version(px_id: str, version: int) -> Response:
     return _serve_pdf(px_id, version=version)
 
 
-def _serve_pdf(px_id: str, version: int | None) -> Response:
+_GCS_HTTPS_PREFIXES = (
+    "https://storage.googleapis.com/",
+    "http://storage.googleapis.com/",
+    "https://storage.cloud.google.com/",
+)
+
+
+def _fetch_pdf_bytes(pdf_url: str) -> bytes:
+    """Fetch the bytes behind a stored ``pdf_url``.
+
+    PDFs are read through the authenticated ``google-cloud-storage`` client
+    rather than the public ``storage.googleapis.com`` URL that ``_store_pdf``
+    records. Anonymous reads of these buckets stopped working on 2026-07-11
+    when org-level Public Access Prevention was enforced: it overrides the
+    bucket's surviving ``allUsers``/``objectViewer`` grant, so every
+    unauthenticated GET became a 403 and this route answered "PDF not
+    available" for every paper. Same trap ``database._download_from_gcs``
+    documents for the papers DB. Non-GCS URLs still go over plain HTTP.
+    """
+    for prefix in _GCS_HTTPS_PREFIXES:
+        if pdf_url.startswith(prefix):
+            rest = pdf_url[len(prefix):]
+            break
+    else:
+        rest = pdf_url[len("gs://"):] if pdf_url.startswith("gs://") else ""
+    if rest:
+        bucket_name, _, blob_path = rest.partition("/")
+        if bucket_name and blob_path:
+            from google.cloud import storage
+            client = storage.Client()
+            return client.bucket(bucket_name).blob(blob_path).download_as_bytes()
+
     import urllib.request
+    with urllib.request.urlopen(pdf_url, timeout=15) as resp:
+        return resp.read()
+
+
+def _serve_pdf(px_id: str, version: int | None) -> Response:
     from browse.services.papers import get_paper_by_id
     paper = get_paper_by_id(px_id, version=version)
     if paper is None:
         return "Paper not found", status.NOT_FOUND, {}
+    if not paper.get("pdf_url"):
+        return "PDF not available", status.NOT_FOUND, {}
     try:
-        with urllib.request.urlopen(paper["pdf_url"], timeout=15) as resp:
-            pdf_data = resp.read()
-    except Exception:
+        pdf_data = _fetch_pdf_bytes(paper["pdf_url"])
+    except Exception as exc:
+        print(f"[PX] PDF fetch failed for {px_id} ({paper['pdf_url']}): {exc}",
+              flush=True)
         return "PDF not available", status.NOT_FOUND, {}
     v = paper.get("version", 1)
     return Response(pdf_data, mimetype="application/pdf",

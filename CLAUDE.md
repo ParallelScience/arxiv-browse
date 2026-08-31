@@ -146,7 +146,11 @@ The DB is stored in GCS and downloaded to `/tmp` on container cold start via the
 
 ### GCS Storage
 
-- **Bucket**: `parallel-arxiv-pdfs` (publicly readable)
+- **Bucket**: `parallel-arxiv-pdfs` — **not** publicly readable. The `allUsers`/
+  `objectViewer` grant is still on the bucket but org-level Public Access
+  Prevention (enforced 2026-07-11) overrides it, so anonymous GETs of
+  `storage.googleapis.com/...` return 403. Always read via the authenticated
+  `google-cloud-storage` client — both for `papers.db` and for PDFs.
 - **`papers.db`** — The SQLite database (~60KB at 7 papers, grows ~2KB per paper)
 - **`<px_id>v<N>.pdf`** — Versioned PDFs (e.g., `2604.00001v1.pdf`)
 
